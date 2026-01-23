@@ -37,7 +37,7 @@ pub type ScoringItem {
   // Flower: 4 pts
 }
 
-fn item_points(item: ScoringItem) -> Int {
+pub fn item_points(item: ScoringItem) -> Int {
   case item {
     Pung -> 2
     PungHonors -> 4
@@ -217,7 +217,7 @@ fn remove_at(items: List(a), index: Int) -> List(a) {
 
 // --- Scoring ---
 
-fn calculate_hand_points(hand: PlayerHand, is_winner: Bool) -> Int {
+pub fn calculate_hand_points(hand: PlayerHand, is_winner: Bool) -> Int {
   let base =
     list.fold(hand.items, 0, fn(total, item) { total + item_points(item) })
   case is_winner {
