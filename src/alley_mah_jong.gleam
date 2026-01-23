@@ -6,6 +6,7 @@ import lustre/attribute.{class}
 import lustre/element.{type Element, text}
 import lustre/element/html.{button, div, h1, h3, option, select, span}
 import lustre/event
+import storage
 
 // --- Scoring Items ---
 
@@ -108,7 +109,7 @@ fn empty_hand() -> PlayerHand {
   PlayerHand(items: [])
 }
 
-fn init(_flags) -> Model {
+fn default_model() -> Model {
   Model(
     east_wind: Player1,
     prevailing_wind: East,
@@ -116,6 +117,125 @@ fn init(_flags) -> Model {
     hands: #(empty_hand(), empty_hand(), empty_hand(), empty_hand()),
     names: #("", "", "", ""),
   )
+}
+
+fn init(_flags) -> Model {
+  case storage.load_state() {
+    Some(state) -> model_from_state(state)
+    None -> default_model()
+  }
+}
+
+// --- State Conversion ---
+
+pub fn model_to_state(model: Model) -> storage.GameState {
+  storage.GameState(
+    east_wind: player_to_storage(model.east_wind),
+    prevailing_wind: wind_to_storage(model.prevailing_wind),
+    winner: option.map(model.winner, player_to_storage),
+    hands: #(
+      hand_to_storage(model.hands.0),
+      hand_to_storage(model.hands.1),
+      hand_to_storage(model.hands.2),
+      hand_to_storage(model.hands.3),
+    ),
+    names: model.names,
+  )
+}
+
+fn model_from_state(state: storage.GameState) -> Model {
+  Model(
+    east_wind: player_from_storage(state.east_wind),
+    prevailing_wind: wind_from_storage(state.prevailing_wind),
+    winner: option.map(state.winner, player_from_storage),
+    hands: #(
+      hand_from_storage(state.hands.0),
+      hand_from_storage(state.hands.1),
+      hand_from_storage(state.hands.2),
+      hand_from_storage(state.hands.3),
+    ),
+    names: state.names,
+  )
+}
+
+fn player_to_storage(player: Player) -> storage.Player {
+  case player {
+    Player1 -> storage.Player1
+    Player2 -> storage.Player2
+    Player3 -> storage.Player3
+    Player4 -> storage.Player4
+  }
+}
+
+fn player_from_storage(player: storage.Player) -> Player {
+  case player {
+    storage.Player1 -> Player1
+    storage.Player2 -> Player2
+    storage.Player3 -> Player3
+    storage.Player4 -> Player4
+  }
+}
+
+fn wind_to_storage(wind: Wind) -> storage.Wind {
+  case wind {
+    North -> storage.North
+    South -> storage.South
+    East -> storage.East
+    West -> storage.West
+  }
+}
+
+fn wind_from_storage(wind: storage.Wind) -> Wind {
+  case wind {
+    storage.North -> North
+    storage.South -> South
+    storage.East -> East
+    storage.West -> West
+  }
+}
+
+fn hand_to_storage(hand: PlayerHand) -> storage.PlayerHand {
+  storage.PlayerHand(items: list.map(hand.items, item_to_storage))
+}
+
+fn hand_from_storage(hand: storage.PlayerHand) -> PlayerHand {
+  PlayerHand(items: list.map(hand.items, item_from_storage))
+}
+
+fn item_to_storage(item: ScoringItem) -> storage.ScoringItem {
+  case item {
+    Pung -> storage.Pung
+    PungHonors -> storage.PungHonors
+    PungHidden -> storage.PungHidden
+    PungHonorsHidden -> storage.PungHonorsHidden
+    Kong -> storage.Kong
+    KongHonors -> storage.KongHonors
+    KongHidden -> storage.KongHidden
+    KongHonorsHidden -> storage.KongHonorsHidden
+    BonusPairWind -> storage.BonusPairWind
+    BonusPairDragon -> storage.BonusPairDragon
+    BonusFlower -> storage.BonusFlower
+  }
+}
+
+fn item_from_storage(item: storage.ScoringItem) -> ScoringItem {
+  case item {
+    storage.Pung -> Pung
+    storage.PungHonors -> PungHonors
+    storage.PungHidden -> PungHidden
+    storage.PungHonorsHidden -> PungHonorsHidden
+    storage.Kong -> Kong
+    storage.KongHonors -> KongHonors
+    storage.KongHidden -> KongHidden
+    storage.KongHonorsHidden -> KongHonorsHidden
+    storage.BonusPairWind -> BonusPairWind
+    storage.BonusPairDragon -> BonusPairDragon
+    storage.BonusFlower -> BonusFlower
+  }
+}
+
+fn save_model(model: Model) -> Nil {
+  storage.save_state(model_to_state(model))
 }
 
 // --- Messages ---
@@ -133,7 +253,7 @@ pub type Msg {
 // --- Update ---
 
 fn update(model: Model, msg: Msg) -> Model {
-  case msg {
+  let new_model = case msg {
     SetEastWind(player) -> Model(..model, east_wind: player)
     SetPrevailingWind(wind) -> Model(..model, prevailing_wind: wind)
     SetWinner(winner) -> Model(..model, winner: winner)
@@ -148,6 +268,8 @@ fn update(model: Model, msg: Msg) -> Model {
         empty_hand(),
       ))
   }
+  save_model(new_model)
+  new_model
 }
 
 fn set_player_name(model: Model, player: Player, name: String) -> Model {
@@ -264,15 +386,12 @@ fn view_round_settings(model: Model) -> Element(Msg) {
     div([class("round-settings")], [
       div([class("setting")], [
         html.label([], [text("East Wind: ")]),
-        select(
-          [event.on_input(fn(val) { SetEastWind(parse_player(val)) })],
-          [
-            player_option(Player1, model.east_wind, model.names),
-            player_option(Player2, model.east_wind, model.names),
-            player_option(Player3, model.east_wind, model.names),
-            player_option(Player4, model.east_wind, model.names),
-          ],
-        ),
+        select([event.on_input(fn(val) { SetEastWind(parse_player(val)) })], [
+          player_option(Player1, model.east_wind, model.names),
+          player_option(Player2, model.east_wind, model.names),
+          player_option(Player3, model.east_wind, model.names),
+          player_option(Player4, model.east_wind, model.names),
+        ]),
       ]),
       div([class("setting")], [
         html.label([], [text("Prevailing Wind: ")]),
@@ -288,16 +407,13 @@ fn view_round_settings(model: Model) -> Element(Msg) {
       ]),
       div([class("setting")], [
         html.label([], [text("Mah-jong'd: ")]),
-        select(
-          [event.on_input(fn(val) { SetWinner(parse_winner(val)) })],
-          [
-            winner_option(None, model.winner, model.names),
-            winner_option(Some(Player1), model.winner, model.names),
-            winner_option(Some(Player2), model.winner, model.names),
-            winner_option(Some(Player3), model.winner, model.names),
-            winner_option(Some(Player4), model.winner, model.names),
-          ],
-        ),
+        select([event.on_input(fn(val) { SetWinner(parse_winner(val)) })], [
+          winner_option(None, model.winner, model.names),
+          winner_option(Some(Player1), model.winner, model.names),
+          winner_option(Some(Player2), model.winner, model.names),
+          winner_option(Some(Player3), model.winner, model.names),
+          winner_option(Some(Player4), model.winner, model.names),
+        ]),
       ]),
       button([class("new-round-btn"), event.on_click(NewRound)], [
         text("New Round"),
@@ -355,15 +471,42 @@ fn winner_option(
     None -> #("None", "None")
     Some(p) -> #(get_player_name(p, names), player_to_string(p))
   }
-  option([attribute.value(value), attribute.selected(winner == selected)], label)
+  option(
+    [attribute.value(value), attribute.selected(winner == selected)],
+    label,
+  )
 }
 
 fn view_all_hands(model: Model) -> Element(Msg) {
   div([class("all-hands")], [
-    view_player_hand(Player1, model.hands.0, model.east_wind, model.winner, model.names),
-    view_player_hand(Player2, model.hands.1, model.east_wind, model.winner, model.names),
-    view_player_hand(Player3, model.hands.2, model.east_wind, model.winner, model.names),
-    view_player_hand(Player4, model.hands.3, model.east_wind, model.winner, model.names),
+    view_player_hand(
+      Player1,
+      model.hands.0,
+      model.east_wind,
+      model.winner,
+      model.names,
+    ),
+    view_player_hand(
+      Player2,
+      model.hands.1,
+      model.east_wind,
+      model.winner,
+      model.names,
+    ),
+    view_player_hand(
+      Player3,
+      model.hands.2,
+      model.east_wind,
+      model.winner,
+      model.names,
+    ),
+    view_player_hand(
+      Player4,
+      model.hands.3,
+      model.east_wind,
+      model.winner,
+      model.names,
+    ),
   ])
 }
 
@@ -390,7 +533,9 @@ fn view_player_hand(
   let points = calculate_hand_points(hand, is_winner)
   div([class(hand_class)], [
     div([class("hand-header")], [
-      h3([], [text(get_player_name(player, names) <> east_marker <> winner_marker)]),
+      h3([], [
+        text(get_player_name(player, names) <> east_marker <> winner_marker),
+      ]),
       span([class("points")], [text(int.to_string(points) <> " pts")]),
     ]),
     div(
