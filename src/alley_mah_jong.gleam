@@ -512,7 +512,6 @@ fn styles() -> String {
     --carbon-faded: #8a8a8a;
     --btn-dark: #e8e4d9;
     --btn-darker: #ddd8c9;
-    --ink-red: #8b0000;
     --ink-purple: #4a235a;
   }
   body {
@@ -639,7 +638,8 @@ fn styles() -> String {
   }
   .player-hand.winner .hand-header h3::after {
     content: ' ★';
-    color: var(--ink-red);
+    color: var(--ink-purple);
+    font-size: 1.3em;
   }
   .hand-header {
     display: flex;
@@ -687,7 +687,7 @@ fn styles() -> String {
   .row-label {
     font-size: 10px;
     color: var(--carbon-light);
-    width: 52px;
+    width: 62px;
     flex-shrink: 0;
     text-transform: uppercase;
     letter-spacing: 0.5px;
