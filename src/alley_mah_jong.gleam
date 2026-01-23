@@ -446,34 +446,77 @@ fn parse_winner(s: String) -> Option(Player) {
 
 fn styles() -> String {
   "
+  /* Vintage typewriter aesthetic */
+  :root {
+    --cream: #f4f1e8;
+    --paper: #faf8f3;
+    --carbon: #2c2c2c;
+    --carbon-light: #4a4a4a;
+    --carbon-faded: #8a8a8a;
+    --smudge: rgba(44, 44, 44, 0.1);
+    --ink-red: #8b0000;
+  }
+  body {
+    background: var(--cream);
+    margin: 0;
+  }
   .app {
-    font-family: system-ui, sans-serif;
+    font-family: 'Courier New', Courier, monospace;
     max-width: 900px;
     margin: 0 auto;
     padding: 20px;
+    color: var(--carbon);
+  }
+  h1 {
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    border-bottom: 2px solid var(--carbon);
+    padding-bottom: 8px;
+    margin-bottom: 24px;
   }
   .round-settings {
     display: flex;
     gap: 20px;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
     flex-wrap: wrap;
+    padding: 16px;
+    background: var(--paper);
+    border: 1px solid var(--carbon-faded);
+    box-shadow: 2px 2px 0 var(--smudge);
   }
   .setting {
     display: flex;
     align-items: center;
     gap: 8px;
   }
+  .setting label {
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+  .setting select {
+    font-family: 'Courier New', Courier, monospace;
+    padding: 4px 8px;
+    border: 1px solid var(--carbon-faded);
+    background: var(--paper);
+    font-size: 14px;
+  }
   .new-round-btn {
     padding: 8px 16px;
-    background: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 4px;
+    background: var(--paper);
+    color: var(--ink-red);
+    border: 2px solid var(--ink-red);
     cursor: pointer;
+    font-family: 'Courier New', Courier, monospace;
     font-weight: bold;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 1px;
   }
   .new-round-btn:hover {
-    background: #c82333;
+    background: var(--ink-red);
+    color: var(--paper);
   }
   .all-hands {
     display: grid;
@@ -486,28 +529,38 @@ fn styles() -> String {
     }
   }
   .player-hand {
-    border: 1px solid #ddd;
+    border: 1px solid var(--carbon-faded);
     padding: 12px;
-    border-radius: 8px;
-    background: #fafafa;
+    background: var(--paper);
+    box-shadow: 2px 2px 0 var(--smudge);
   }
   .player-hand.winner {
-    border-color: #ffc107;
-    background: #fff8e1;
+    border-color: var(--carbon);
+    border-width: 2px;
+    background: var(--paper);
+    box-shadow: 3px 3px 0 var(--smudge), inset 0 0 20px rgba(139, 0, 0, 0.05);
+  }
+  .player-hand.winner .hand-header h3::after {
+    content: ' ★';
+    color: var(--ink-red);
   }
   .hand-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 8px;
+    border-bottom: 1px dashed var(--carbon-faded);
+    padding-bottom: 8px;
   }
   .hand-header h3 {
     margin: 0;
-    font-size: 16px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
   }
   .points {
     font-weight: bold;
-    color: #333;
+    color: var(--carbon);
     font-size: 18px;
   }
   .hand-items {
@@ -517,14 +570,15 @@ fn styles() -> String {
     min-height: 36px;
     margin-bottom: 10px;
     padding: 8px;
-    background: #fff;
-    border-radius: 4px;
-    border: 1px dashed #ccc;
+    background: var(--cream);
+    border: 1px dashed var(--carbon-faded);
   }
   .add-section {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    padding-top: 8px;
+    border-top: 1px dotted var(--carbon-faded);
   }
   .add-row {
     display: flex;
@@ -533,34 +587,38 @@ fn styles() -> String {
     flex-wrap: wrap;
   }
   .row-label {
-    font-size: 12px;
-    color: #666;
+    font-size: 10px;
+    color: var(--carbon-light);
     width: 60px;
     flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
   }
   .scoring-item {
     padding: 4px 8px;
-    border: 1px solid #999;
-    background: #fff;
+    border: 1px solid var(--carbon-faded);
+    background: var(--paper);
     cursor: pointer;
     font-size: 11px;
-    border-radius: 4px;
+    font-family: 'Courier New', Courier, monospace;
   }
   .scoring-item.add {
-    background: #e3f2fd;
-    border-color: #90caf9;
+    background: var(--paper);
+    border-color: var(--carbon-faded);
   }
   .scoring-item.add:hover {
-    background: #bbdefb;
+    background: var(--cream);
+    border-color: var(--carbon);
   }
   .scoring-item.in-hand {
-    background: #fffde7;
-    border-color: #fdd835;
+    background: var(--cream);
+    border-color: var(--carbon);
     font-weight: bold;
+    box-shadow: 1px 1px 0 var(--smudge);
   }
   .scoring-item.in-hand:hover {
-    background: #ffcdd2;
-    border-color: #e57373;
+    background: #f0e0e0;
+    border-color: var(--ink-red);
   }
   "
 }
