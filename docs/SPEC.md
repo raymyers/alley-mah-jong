@@ -7,7 +7,41 @@ Who is the prevailing wind
 
 What's in every hand: hidden and revealed.
 
-(Need tile category selector)
+Scoring selector. We select a series of secong items for each player
+
+# Scoring items
+* Pung of 2-8
+* Pung of Honors (1-9, W, D)
+* Kong of 2-8
+* Kong of Honors (1-9, W D)
+* Bonus: Pair of Wind
+* Bonus: Pair of Dragon
+* Bonus: Flower
+* Mah-jong
+
+For Pungs and Kong, we need to track if they are hidden.
+
+## Scoring item notation
+
+```
+p
+ph
+k
+kh
+bpw
+bpd
+bf
+mj
+```
+
+Hiddens
+
+```
+hp
+hph
+hk
+hkh
+```
 
 ## Output
 
@@ -27,7 +61,7 @@ Flowers (blue, red)
   * 2-8 (2 points) 
   * 1,9,Winds,Dragons (4 points) 
   * Hidden 2-8 (4 points) 
-  * Hidden 1,9,Winds,Dragons (4 points) 
+  * Hidden 1,9,Winds,Dragons (8 points) 
 * Kong - 4 of a kind
   * 2-8 (8 points)
   * 1,9,Winds,Dragons (16 points)
