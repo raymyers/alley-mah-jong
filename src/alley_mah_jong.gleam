@@ -59,8 +59,8 @@ fn item_label(item: ScoringItem) -> String {
     PungHonors | PungHonorsHidden -> "Pung Honors"
     Kong | KongHidden -> "Kong 2-8"
     KongHonors | KongHonorsHidden -> "Kong Honors"
-    BonusPairWind -> "Wind"
-    BonusPairDragon -> "Dragon"
+    BonusPairWind -> "Wind Pair"
+    BonusPairDragon -> "Dragon Pair"
     BonusFlower -> "Flower"
   }
 }
@@ -585,8 +585,9 @@ fn styles() -> String {
     min-height: 36px;
     margin-bottom: 10px;
     padding: 8px;
-    background: var(--cream);
-    border: 1px dashed var(--carbon-faded);
+    background: var(--paper);
+    border: 1px dotted var(--carbon-faded);
+    opacity: 0.9;
   }
   .add-section {
     display: flex;
@@ -631,12 +632,9 @@ fn styles() -> String {
       2px 2px 4px rgba(44,44,44,0.08);
   }
   .scoring-item.in-hand {
-    background: var(--btn-darker);
-    border: 2px solid var(--carbon);
+    background: var(--btn-dark);
+    border: 1px solid var(--carbon-faded);
     font-weight: bold;
-    box-shadow:
-      2px 2px 0 rgba(44,44,44,0.15),
-      3px 3px 6px rgba(44,44,44,0.06);
   }
   .scoring-item.in-hand:hover {
     background: #e0d5c5;

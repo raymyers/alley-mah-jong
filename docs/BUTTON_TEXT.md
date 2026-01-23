@@ -15,8 +15,8 @@
 - Kong Honors
 
 ### Bonus Row
-- Wind
-- Dragon
+- Wind Pair
+- Dragon Pair
 - Flower
 
 ## Row Labels
