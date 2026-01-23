@@ -114,7 +114,7 @@ fn init(_flags) -> Model {
     prevailing_wind: East,
     winner: None,
     hands: #(empty_hand(), empty_hand(), empty_hand(), empty_hand()),
-    names: #("Player 1", "Player 2", "Player 3", "Player 4"),
+    names: #("", "", "", ""),
   )
 }
 
@@ -450,11 +450,15 @@ fn get_player_name(
   player: Player,
   names: #(String, String, String, String),
 ) -> String {
-  case player {
+  let name = case player {
     Player1 -> names.0
     Player2 -> names.1
     Player3 -> names.2
     Player4 -> names.3
+  }
+  case name {
+    "" -> player_to_string(player)
+    _ -> name
   }
 }
 
