@@ -55,12 +55,12 @@ pub fn item_points(item: ScoringItem) -> Int {
 
 fn item_label(item: ScoringItem) -> String {
   case item {
-    Pung | PungHidden -> "Pung (2-8)"
-    PungHonors | PungHonorsHidden -> "Pung (Honors)"
-    Kong | KongHidden -> "Kong (2-8)"
-    KongHonors | KongHonorsHidden -> "Kong (Honors)"
-    BonusPairWind -> "Pair of Wind"
-    BonusPairDragon -> "Pair of Dragon"
+    Pung | PungHidden -> "Pung 2-8"
+    PungHonors | PungHonorsHidden -> "Pung Hon"
+    Kong | KongHidden -> "Kong 2-8"
+    KongHonors | KongHonorsHidden -> "Kong Hon"
+    BonusPairWind -> "Wind"
+    BonusPairDragon -> "Dragon"
     BonusFlower -> "Flower"
   }
 }
@@ -604,19 +604,20 @@ fn styles() -> String {
   .row-label {
     font-size: 10px;
     color: var(--carbon-light);
-    width: 60px;
+    width: 52px;
     flex-shrink: 0;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
   }
   .scoring-item {
-    padding: 4px 8px;
+    padding: 3px 6px;
     border: 1px solid var(--carbon-faded);
     background: var(--btn-dark);
     cursor: pointer;
-    font-size: 11px;
+    font-size: 10px;
     font-family: 'Courier New', Courier, monospace;
     box-shadow: 1px 1px 0 rgba(44,44,44,0.1);
+    white-space: nowrap;
   }
   .scoring-item.add {
     background: var(--btn-dark);
