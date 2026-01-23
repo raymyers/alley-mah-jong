@@ -124,6 +124,7 @@ pub type Msg {
   SetWinner(Option(Player))
   AddItem(Player, ScoringItem)
   RemoveItem(Player, Int)
+  NewRound
 }
 
 // --- Update ---
@@ -135,6 +136,12 @@ fn update(model: Model, msg: Msg) -> Model {
     SetWinner(winner) -> Model(..model, winner: winner)
     AddItem(player, item) -> add_item_to_hand(model, player, item)
     RemoveItem(player, index) -> remove_item_from_hand(model, player, index)
+    NewRound ->
+      Model(
+        ..model,
+        winner: None,
+        hands: #(empty_hand(), empty_hand(), empty_hand(), empty_hand()),
+      )
   }
 }
 
@@ -266,6 +273,9 @@ fn view_round_settings(model: Model) -> Element(Msg) {
         winner_option(Some(Player3), model.winner),
         winner_option(Some(Player4), model.winner),
       ]),
+    ]),
+    button([class("new-round-btn"), event.on_click(NewRound)], [
+      text("New Round"),
     ]),
   ])
 }
@@ -451,6 +461,18 @@ fn styles() -> String {
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+  .new-round-btn {
+    padding: 8px 16px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  .new-round-btn:hover {
+    background: #c82333;
   }
   .all-hands {
     display: grid;
