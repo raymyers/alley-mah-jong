@@ -52,13 +52,11 @@ pub fn bonus_flower_points_test() {
 }
 
 pub fn bonus_pair_wind_points_test() {
-  // Pair of wind contributes to doubles, not base points
-  assert item_points(BonusPairWind) == 0
+  assert item_points(BonusPairWind) == 2
 }
 
 pub fn bonus_pair_dragon_points_test() {
-  // Pair of dragon contributes to doubles, not base points
-  assert item_points(BonusPairDragon) == 0
+  assert item_points(BonusPairDragon) == 2
 }
 
 // --- Hand Calculation Tests ---

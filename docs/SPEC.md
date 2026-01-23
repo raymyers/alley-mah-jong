@@ -119,8 +119,9 @@ Non-Mah-jong'd players are scored only if they are clean.
 
 ## Bonus
 
+Pair of Winds (2pt)
+Pair of Dragons (2pt)
 Flower (4pt)
-
 Mah-jonging (20pt)
 
 ## Doubles

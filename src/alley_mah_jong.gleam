@@ -48,8 +48,8 @@ pub fn item_points(item: ScoringItem) -> Int {
     KongHonors -> 16
     KongHidden -> 16
     KongHonorsHidden -> 32
-    BonusPairWind -> 0
-    BonusPairDragon -> 0
+    BonusPairWind -> 2
+    BonusPairDragon -> 2
     BonusFlower -> 4
   }
 }
@@ -475,13 +475,10 @@ fn view_rules_page() -> Element(Msg) {
       ]),
       html.h3([], [text("Bonuses")]),
       html.ul([], [
+        html.li([], [text("Pair of Winds: 2 pts")]),
+        html.li([], [text("Pair of Dragons: 2 pts")]),
         html.li([], [text("Flower: 4 pts")]),
-        html.li([], [text("Wind Pair: doubles (own or prevailing wind)")]),
-        html.li([], [text("Dragon Pair: doubles")]),
-      ]),
-      html.h3([], [text("Winning")]),
-      html.p([], [
-        text("The player who completes Mah-jong receives a 20 point bonus."),
+        html.li([], [text("Mah-jonging: 20 pts")]),
       ]),
       html.h3([], [text("Terminology")]),
       html.ul([], [
