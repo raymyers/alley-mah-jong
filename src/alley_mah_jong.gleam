@@ -56,9 +56,9 @@ pub fn item_points(item: ScoringItem) -> Int {
 fn item_label(item: ScoringItem) -> String {
   case item {
     Pung | PungHidden -> "Pung 2-8"
-    PungHonors | PungHonorsHidden -> "Pung Hon"
+    PungHonors | PungHonorsHidden -> "Pung Honors"
     Kong | KongHidden -> "Kong 2-8"
-    KongHonors | KongHonorsHidden -> "Kong Hon"
+    KongHonors | KongHonorsHidden -> "Kong Honors"
     BonusPairWind -> "Wind"
     BonusPairDragon -> "Dragon"
     BonusFlower -> "Flower"
