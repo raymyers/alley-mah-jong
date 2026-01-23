@@ -100,6 +100,7 @@ pub type Model {
     prevailing_wind: Wind,
     winner: Option(Player),
     hands: #(PlayerHand, PlayerHand, PlayerHand, PlayerHand),
+    names: #(String, String, String, String),
   )
 }
 
@@ -108,12 +109,13 @@ fn empty_hand() -> PlayerHand {
 }
 
 fn init(_flags) -> Model {
-  Model(east_wind: Player1, prevailing_wind: East, winner: None, hands: #(
-    empty_hand(),
-    empty_hand(),
-    empty_hand(),
-    empty_hand(),
-  ))
+  Model(
+    east_wind: Player1,
+    prevailing_wind: East,
+    winner: None,
+    hands: #(empty_hand(), empty_hand(), empty_hand(), empty_hand()),
+    names: #("Player 1", "Player 2", "Player 3", "Player 4"),
+  )
 }
 
 // --- Messages ---
@@ -122,6 +124,7 @@ pub type Msg {
   SetEastWind(Player)
   SetPrevailingWind(Wind)
   SetWinner(Option(Player))
+  SetPlayerName(Player, String)
   AddItem(Player, ScoringItem)
   RemoveItem(Player, Int)
   NewRound
@@ -134,6 +137,7 @@ fn update(model: Model, msg: Msg) -> Model {
     SetEastWind(player) -> Model(..model, east_wind: player)
     SetPrevailingWind(wind) -> Model(..model, prevailing_wind: wind)
     SetWinner(winner) -> Model(..model, winner: winner)
+    SetPlayerName(player, name) -> set_player_name(model, player, name)
     AddItem(player, item) -> add_item_to_hand(model, player, item)
     RemoveItem(player, index) -> remove_item_from_hand(model, player, index)
     NewRound ->
@@ -144,6 +148,16 @@ fn update(model: Model, msg: Msg) -> Model {
         empty_hand(),
       ))
   }
+}
+
+fn set_player_name(model: Model, player: Player, name: String) -> Model {
+  let names = case player {
+    Player1 -> #(name, model.names.1, model.names.2, model.names.3)
+    Player2 -> #(model.names.0, name, model.names.2, model.names.3)
+    Player3 -> #(model.names.0, model.names.1, name, model.names.3)
+    Player4 -> #(model.names.0, model.names.1, model.names.2, name)
+  }
+  Model(..model, names: names)
 }
 
 fn add_item_to_hand(model: Model, player: Player, item: ScoringItem) -> Model {
@@ -246,48 +260,79 @@ fn view(model: Model) -> Element(Msg) {
 }
 
 fn view_round_settings(model: Model) -> Element(Msg) {
-  div([class("round-settings")], [
-    div([class("setting")], [
-      html.label([], [text("East Wind: ")]),
-      select([event.on_input(fn(val) { SetEastWind(parse_player(val)) })], [
-        player_option(Player1, model.east_wind),
-        player_option(Player2, model.east_wind),
-        player_option(Player3, model.east_wind),
-        player_option(Player4, model.east_wind),
+  div([class("settings-container")], [
+    div([class("round-settings")], [
+      div([class("setting")], [
+        html.label([], [text("East Wind: ")]),
+        select(
+          [event.on_input(fn(val) { SetEastWind(parse_player(val)) })],
+          [
+            player_option(Player1, model.east_wind, model.names),
+            player_option(Player2, model.east_wind, model.names),
+            player_option(Player3, model.east_wind, model.names),
+            player_option(Player4, model.east_wind, model.names),
+          ],
+        ),
+      ]),
+      div([class("setting")], [
+        html.label([], [text("Prevailing Wind: ")]),
+        select(
+          [event.on_input(fn(val) { SetPrevailingWind(parse_wind(val)) })],
+          [
+            wind_option(East, model.prevailing_wind),
+            wind_option(South, model.prevailing_wind),
+            wind_option(West, model.prevailing_wind),
+            wind_option(North, model.prevailing_wind),
+          ],
+        ),
+      ]),
+      div([class("setting")], [
+        html.label([], [text("Mah-jong'd: ")]),
+        select(
+          [event.on_input(fn(val) { SetWinner(parse_winner(val)) })],
+          [
+            winner_option(None, model.winner, model.names),
+            winner_option(Some(Player1), model.winner, model.names),
+            winner_option(Some(Player2), model.winner, model.names),
+            winner_option(Some(Player3), model.winner, model.names),
+            winner_option(Some(Player4), model.winner, model.names),
+          ],
+        ),
+      ]),
+      button([class("new-round-btn"), event.on_click(NewRound)], [
+        text("New Round"),
       ]),
     ]),
-    div([class("setting")], [
-      html.label([], [text("Prevailing Wind: ")]),
-      select([event.on_input(fn(val) { SetPrevailingWind(parse_wind(val)) })], [
-        wind_option(East, model.prevailing_wind),
-        wind_option(South, model.prevailing_wind),
-        wind_option(West, model.prevailing_wind),
-        wind_option(North, model.prevailing_wind),
-      ]),
-    ]),
-    div([class("setting")], [
-      html.label([], [text("Mah-jong'd: ")]),
-      select([event.on_input(fn(val) { SetWinner(parse_winner(val)) })], [
-        winner_option(None, model.winner),
-        winner_option(Some(Player1), model.winner),
-        winner_option(Some(Player2), model.winner),
-        winner_option(Some(Player3), model.winner),
-        winner_option(Some(Player4), model.winner),
-      ]),
-    ]),
-    button([class("new-round-btn"), event.on_click(NewRound)], [
-      text("New Round"),
+    div([class("name-settings")], [
+      name_input(Player1, model.names.0),
+      name_input(Player2, model.names.1),
+      name_input(Player3, model.names.2),
+      name_input(Player4, model.names.3),
     ]),
   ])
 }
 
-fn player_option(player: Player, selected: Player) -> Element(Msg) {
+fn name_input(player: Player, current_name: String) -> Element(Msg) {
+  html.input([
+    class("name-input"),
+    attribute.value(current_name),
+    attribute.placeholder(player_to_string(player)),
+    event.on_input(fn(val) { SetPlayerName(player, val) }),
+  ])
+}
+
+fn player_option(
+  player: Player,
+  selected: Player,
+  names: #(String, String, String, String),
+) -> Element(Msg) {
+  let display_name = get_player_name(player, names)
   option(
     [
       attribute.value(player_to_string(player)),
       attribute.selected(player == selected),
     ],
-    player_to_string(player),
+    display_name,
   )
 }
 
@@ -304,26 +349,21 @@ fn wind_option(wind: Wind, selected: Wind) -> Element(Msg) {
 fn winner_option(
   winner: Option(Player),
   selected: Option(Player),
+  names: #(String, String, String, String),
 ) -> Element(Msg) {
-  let label = case winner {
-    None -> "None"
-    Some(p) -> player_to_string(p)
+  let #(label, value) = case winner {
+    None -> #("None", "None")
+    Some(p) -> #(get_player_name(p, names), player_to_string(p))
   }
-  option(
-    [
-      attribute.value(label),
-      attribute.selected(winner == selected),
-    ],
-    label,
-  )
+  option([attribute.value(value), attribute.selected(winner == selected)], label)
 }
 
 fn view_all_hands(model: Model) -> Element(Msg) {
   div([class("all-hands")], [
-    view_player_hand(Player1, model.hands.0, model.east_wind, model.winner),
-    view_player_hand(Player2, model.hands.1, model.east_wind, model.winner),
-    view_player_hand(Player3, model.hands.2, model.east_wind, model.winner),
-    view_player_hand(Player4, model.hands.3, model.east_wind, model.winner),
+    view_player_hand(Player1, model.hands.0, model.east_wind, model.winner, model.names),
+    view_player_hand(Player2, model.hands.1, model.east_wind, model.winner, model.names),
+    view_player_hand(Player3, model.hands.2, model.east_wind, model.winner, model.names),
+    view_player_hand(Player4, model.hands.3, model.east_wind, model.winner, model.names),
   ])
 }
 
@@ -332,6 +372,7 @@ fn view_player_hand(
   hand: PlayerHand,
   east: Player,
   winner: Option(Player),
+  names: #(String, String, String, String),
 ) -> Element(Msg) {
   let is_winner = winner == Some(player)
   let east_marker = case player == east {
@@ -349,7 +390,7 @@ fn view_player_hand(
   let points = calculate_hand_points(hand, is_winner)
   div([class(hand_class)], [
     div([class("hand-header")], [
-      h3([], [text(player_to_string(player) <> east_marker <> winner_marker)]),
+      h3([], [text(get_player_name(player, names) <> east_marker <> winner_marker)]),
       span([class("points")], [text(int.to_string(points) <> " pts")]),
     ]),
     div(
@@ -402,6 +443,18 @@ fn player_to_string(player: Player) -> String {
     Player2 -> "Player 2"
     Player3 -> "Player 3"
     Player4 -> "Player 4"
+  }
+}
+
+fn get_player_name(
+  player: Player,
+  names: #(String, String, String, String),
+) -> String {
+  case player {
+    Player1 -> names.0
+    Player2 -> names.1
+    Player3 -> names.2
+    Player4 -> names.3
   }
 }
 
@@ -476,12 +529,8 @@ fn styles() -> String {
     padding-bottom: 8px;
     margin-bottom: 24px;
   }
-  .round-settings {
-    display: flex;
-    gap: 20px;
+  .settings-container {
     margin-bottom: 24px;
-    flex-wrap: wrap;
-    padding: 16px;
     background: var(--paper);
     border: 2px solid var(--carbon-faded);
     border-radius: 1px;
@@ -489,6 +538,35 @@ fn styles() -> String {
       3px 3px 0 rgba(44,44,44,0.15),
       5px 5px 8px rgba(44,44,44,0.08),
       1px 1px 0 rgba(44,44,44,0.2);
+  }
+  .round-settings {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding: 16px;
+    padding-bottom: 12px;
+  }
+  .name-settings {
+    display: flex;
+    gap: 12px;
+    padding: 12px 16px;
+    border-top: 1px dashed var(--carbon-faded);
+    flex-wrap: wrap;
+  }
+  .name-input {
+    font-family: 'Courier New', Courier, monospace;
+    padding: 6px 10px;
+    border: 1px solid var(--carbon-faded);
+    background: var(--cream);
+    font-size: 13px;
+    flex: 1;
+    min-width: 100px;
+    max-width: 180px;
+  }
+  .name-input:focus {
+    outline: none;
+    border-color: var(--carbon);
+    background: var(--paper);
   }
   .setting {
     display: flex;
