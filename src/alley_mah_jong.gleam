@@ -95,8 +95,14 @@ pub type PlayerHand {
   PlayerHand(items: List(ScoringItem))
 }
 
+pub type Page {
+  MainPage
+  RulesPage
+}
+
 pub type Model {
   Model(
+    page: Page,
     east_wind: Player,
     prevailing_wind: Wind,
     winner: Option(Player),
@@ -111,6 +117,7 @@ fn empty_hand() -> PlayerHand {
 
 fn default_model() -> Model {
   Model(
+    page: MainPage,
     east_wind: Player1,
     prevailing_wind: East,
     winner: None,
@@ -145,6 +152,7 @@ pub fn model_to_state(model: Model) -> storage.GameState {
 
 fn model_from_state(state: storage.GameState) -> Model {
   Model(
+    page: MainPage,
     east_wind: player_from_storage(state.east_wind),
     prevailing_wind: wind_from_storage(state.prevailing_wind),
     winner: option.map(state.winner, player_from_storage),
@@ -241,6 +249,7 @@ fn save_model(model: Model) -> Nil {
 // --- Messages ---
 
 pub type Msg {
+  GoToPage(Page)
   SetEastWind(Player)
   SetPrevailingWind(Wind)
   SetWinner(Option(Player))
@@ -253,23 +262,29 @@ pub type Msg {
 // --- Update ---
 
 fn update(model: Model, msg: Msg) -> Model {
-  let new_model = case msg {
-    SetEastWind(player) -> Model(..model, east_wind: player)
-    SetPrevailingWind(wind) -> Model(..model, prevailing_wind: wind)
-    SetWinner(winner) -> Model(..model, winner: winner)
-    SetPlayerName(player, name) -> set_player_name(model, player, name)
-    AddItem(player, item) -> add_item_to_hand(model, player, item)
-    RemoveItem(player, index) -> remove_item_from_hand(model, player, index)
-    NewRound ->
-      Model(..model, winner: None, hands: #(
-        empty_hand(),
-        empty_hand(),
-        empty_hand(),
-        empty_hand(),
-      ))
+  case msg {
+    GoToPage(page) -> Model(..model, page: page)
+    _ -> {
+      let new_model = case msg {
+        GoToPage(_) -> model
+        SetEastWind(player) -> Model(..model, east_wind: player)
+        SetPrevailingWind(wind) -> Model(..model, prevailing_wind: wind)
+        SetWinner(winner) -> Model(..model, winner: winner)
+        SetPlayerName(player, name) -> set_player_name(model, player, name)
+        AddItem(player, item) -> add_item_to_hand(model, player, item)
+        RemoveItem(player, index) -> remove_item_from_hand(model, player, index)
+        NewRound ->
+          Model(..model, winner: None, hands: #(
+            empty_hand(),
+            empty_hand(),
+            empty_hand(),
+            empty_hand(),
+          ))
+      }
+      save_model(new_model)
+      new_model
+    }
   }
-  save_model(new_model)
-  new_model
 }
 
 fn set_player_name(model: Model, player: Player, name: String) -> Model {
@@ -375,9 +390,115 @@ pub fn calculate_hand_points(hand: PlayerHand, is_winner: Bool) -> Int {
 fn view(model: Model) -> Element(Msg) {
   div([class("app")], [
     html.style([], styles()),
+    view_header(model.page),
+    case model.page {
+      MainPage -> view_main_page(model)
+      RulesPage -> view_rules_page()
+    },
+  ])
+}
+
+fn view_header(current_page: Page) -> Element(Msg) {
+  div([class("header")], [
     h1([], [text("Alley Mah-jong")]),
-    view_round_settings(model),
-    view_all_hands(model),
+    html.nav([class("nav")], [
+      case current_page {
+        MainPage ->
+          html.a([class("nav-link"), event.on_click(GoToPage(RulesPage))], [
+            text("Rules"),
+          ])
+        RulesPage ->
+          html.a([class("nav-link"), event.on_click(GoToPage(MainPage))], [
+            text("Back to Game"),
+          ])
+      },
+    ]),
+  ])
+}
+
+fn view_main_page(model: Model) -> Element(Msg) {
+  div([], [view_round_settings(model), view_all_hands(model)])
+}
+
+fn view_rules_page() -> Element(Msg) {
+  div([class("rules-page")], [
+    html.article([class("rules-content")], [
+      html.h2([], [text("Scoring Rules")]),
+      html.p([], [
+        text(
+          "This app calculates Mah-jong hand scores. Enter each player's melds and bonuses to see their points.",
+        ),
+      ]),
+      html.h3([], [text("Pungs (3 of a kind)")]),
+      html.table([class("rules-table")], [
+        html.thead([], [
+          html.tr([], [
+            html.th([], [text("Type")]),
+            html.th([], [text("Revealed")]),
+            html.th([], [text("Hidden")]),
+          ]),
+        ]),
+        html.tbody([], [
+          html.tr([], [
+            html.td([], [text("Simple (2-8)")]),
+            html.td([], [text("2 pts")]),
+            html.td([], [text("4 pts")]),
+          ]),
+          html.tr([], [
+            html.td([], [text("Honors (1, 9, Winds, Dragons)")]),
+            html.td([], [text("4 pts")]),
+            html.td([], [text("8 pts")]),
+          ]),
+        ]),
+      ]),
+      html.h3([], [text("Kongs (4 of a kind)")]),
+      html.table([class("rules-table")], [
+        html.thead([], [
+          html.tr([], [
+            html.th([], [text("Type")]),
+            html.th([], [text("Revealed")]),
+            html.th([], [text("Hidden")]),
+          ]),
+        ]),
+        html.tbody([], [
+          html.tr([], [
+            html.td([], [text("Simple (2-8)")]),
+            html.td([], [text("8 pts")]),
+            html.td([], [text("16 pts")]),
+          ]),
+          html.tr([], [
+            html.td([], [text("Honors (1, 9, Winds, Dragons)")]),
+            html.td([], [text("16 pts")]),
+            html.td([], [text("32 pts")]),
+          ]),
+        ]),
+      ]),
+      html.h3([], [text("Bonuses")]),
+      html.ul([], [
+        html.li([], [text("Flower: 4 pts")]),
+        html.li([], [text("Wind Pair: doubles (own or prevailing wind)")]),
+        html.li([], [text("Dragon Pair: doubles")]),
+      ]),
+      html.h3([], [text("Winning")]),
+      html.p([], [
+        text("The player who completes Mah-jong receives a 20 point bonus."),
+      ]),
+      html.h3([], [text("Terminology")]),
+      html.ul([], [
+        html.li([], [
+          html.strong([], [text("Revealed: ")]),
+          text("Melds formed by claiming a discarded tile (face-up on table)"),
+        ]),
+        html.li([], [
+          html.strong([], [text("Hidden: ")]),
+          text("Melds formed entirely from drawn tiles (kept concealed)"),
+        ]),
+        html.li([], [
+          html.strong([], [text("Honors: ")]),
+          text("Terminal tiles (1 and 9), Wind tiles, and Dragon tiles"),
+        ]),
+      ]),
+    ]),
   ])
 }
 
@@ -673,9 +794,34 @@ fn styles() -> String {
   h1 {
     text-transform: uppercase;
     letter-spacing: 4px;
+    margin: 0;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     border-bottom: 2px solid var(--carbon);
     padding-bottom: 8px;
     margin-bottom: 24px;
+  }
+  .nav {
+    display: flex;
+    gap: 16px;
+  }
+  .nav-link {
+    color: var(--ink-purple);
+    text-decoration: none;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+  }
+  .nav-link:hover {
+    border-color: var(--ink-purple);
+    background: var(--btn-dark);
   }
   .settings-container {
     margin-bottom: 24px;
@@ -866,6 +1012,61 @@ fn styles() -> String {
   .scoring-item.in-hand:hover {
     background: #e0d5c5;
     border-color: var(--ink-purple);
+  }
+  /* Rules page */
+  .rules-page {
+    background: var(--paper);
+    border: 2px solid var(--carbon-faded);
+    padding: 24px;
+    box-shadow:
+      3px 3px 0 rgba(44,44,44,0.15),
+      5px 5px 8px rgba(44,44,44,0.08);
+  }
+  .rules-content h2 {
+    margin-top: 0;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--carbon-faded);
+    padding-bottom: 8px;
+  }
+  .rules-content h3 {
+    margin-top: 24px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+  .rules-content p {
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+  .rules-content ul {
+    margin: 0;
+    padding-left: 24px;
+  }
+  .rules-content li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+  .rules-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+  }
+  .rules-table th,
+  .rules-table td {
+    border: 1px solid var(--carbon-faded);
+    padding: 8px 12px;
+    text-align: left;
+  }
+  .rules-table th {
+    background: var(--btn-dark);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+  .rules-table td {
+    background: var(--cream);
   }
   "
 }
