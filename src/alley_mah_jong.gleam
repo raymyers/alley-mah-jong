@@ -42,19 +42,24 @@ fn item_points(item: ScoringItem) -> Int {
   }
 }
 
-fn item_code(item: ScoringItem) -> String {
+fn item_label(item: ScoringItem) -> String {
   case item {
-    Pung -> "p"
-    PungHonors -> "ph"
-    PungHidden -> "hp"
-    PungHonorsHidden -> "hph"
-    Kong -> "k"
-    KongHonors -> "kh"
-    KongHidden -> "hk"
-    KongHonorsHidden -> "hkh"
-    BonusPairWind -> "bpw"
-    BonusPairDragon -> "bpd"
-    BonusFlower -> "bf"
+    Pung | PungHidden -> "Pung (2-8)"
+    PungHonors | PungHonorsHidden -> "Pung (Honors)"
+    Kong | KongHidden -> "Kong (2-8)"
+    KongHonors | KongHonorsHidden -> "Kong (Honors)"
+    BonusPairWind -> "Pair of Wind"
+    BonusPairDragon -> "Pair of Dragon"
+    BonusFlower -> "Flower"
+  }
+}
+
+fn item_display(item: ScoringItem) -> String {
+  let pts = item_points(item)
+  let label = item_label(item)
+  case pts {
+    0 -> label
+    n -> label <> " (" <> int.to_string(n) <> ")"
   }
 }
 
@@ -326,37 +331,41 @@ fn view_player_hand(
         removable_item(player, item, i)
       }),
     ),
-    div([class("add-items")], [
-      item_button(player, Pung),
-      item_button(player, PungHonors),
-      item_button(player, PungHidden),
-      item_button(player, PungHonorsHidden),
-      item_button(player, Kong),
-      item_button(player, KongHonors),
-      item_button(player, KongHidden),
-      item_button(player, KongHonorsHidden),
-      item_button(player, BonusPairWind),
-      item_button(player, BonusPairDragon),
-      item_button(player, BonusFlower),
+    div([class("add-section")], [
+      div([class("add-row")], [
+        span([class("row-label")], [text("Revealed:")]),
+        item_button(player, Pung),
+        item_button(player, PungHonors),
+        item_button(player, Kong),
+        item_button(player, KongHonors),
+      ]),
+      div([class("add-row")], [
+        span([class("row-label")], [text("Hidden:")]),
+        item_button(player, PungHidden),
+        item_button(player, PungHonorsHidden),
+        item_button(player, KongHidden),
+        item_button(player, KongHonorsHidden),
+      ]),
+      div([class("add-row")], [
+        span([class("row-label")], [text("Bonus:")]),
+        item_button(player, BonusPairWind),
+        item_button(player, BonusPairDragon),
+        item_button(player, BonusFlower),
+      ]),
     ]),
   ])
 }
 
 fn item_button(player: Player, item: ScoringItem) -> Element(Msg) {
-  let pts = item_points(item)
-  let pts_text = case pts {
-    0 -> ""
-    n -> " (" <> int.to_string(n) <> ")"
-  }
   button([class("scoring-item add"), event.on_click(AddItem(player, item))], [
-    text(item_code(item) <> pts_text),
+    text(item_label(item)),
   ])
 }
 
 fn removable_item(player: Player, item: ScoringItem, index: Int) -> Element(Msg) {
   button(
     [class("scoring-item in-hand"), event.on_click(RemoveItem(player, index))],
-    [text(item_code(item))],
+    [text(item_display(item))],
   )
 }
 
@@ -475,18 +484,29 @@ fn styles() -> String {
     border-radius: 4px;
     border: 1px dashed #ccc;
   }
-  .add-items {
+  .add-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .add-row {
     display: flex;
     gap: 4px;
+    align-items: center;
     flex-wrap: wrap;
   }
+  .row-label {
+    font-size: 12px;
+    color: #666;
+    width: 60px;
+    flex-shrink: 0;
+  }
   .scoring-item {
-    padding: 6px 10px;
+    padding: 4px 8px;
     border: 1px solid #999;
     background: #fff;
     cursor: pointer;
-    font-weight: bold;
-    font-size: 12px;
+    font-size: 11px;
     border-radius: 4px;
   }
   .scoring-item.add {
@@ -499,6 +519,7 @@ fn styles() -> String {
   .scoring-item.in-hand {
     background: #fffde7;
     border-color: #fdd835;
+    font-weight: bold;
   }
   .scoring-item.in-hand:hover {
     background: #ffcdd2;
