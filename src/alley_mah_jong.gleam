@@ -137,11 +137,12 @@ fn update(model: Model, msg: Msg) -> Model {
     AddItem(player, item) -> add_item_to_hand(model, player, item)
     RemoveItem(player, index) -> remove_item_from_hand(model, player, index)
     NewRound ->
-      Model(
-        ..model,
-        winner: None,
-        hands: #(empty_hand(), empty_hand(), empty_hand(), empty_hand()),
-      )
+      Model(..model, winner: None, hands: #(
+        empty_hand(),
+        empty_hand(),
+        empty_hand(),
+        empty_hand(),
+      ))
   }
 }
 

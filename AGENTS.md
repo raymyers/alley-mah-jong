@@ -1,12 +1,12 @@
 # Agent Instructions
 
-This is a Gleam web application using Lustre for the UI and lustre_stylish for CSS-in-Gleam styling.
+This is a Gleam web application using Lustre for the UI.
 
 ## Tech Stack
 
 - **Language**: Gleam (targeting JavaScript)
 - **UI Framework**: Lustre
-- **Styling**: lustre_stylish
+- **Styling**: Inline CSS via `styles()` function
 
 ## Commands
 
