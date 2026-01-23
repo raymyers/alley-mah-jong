@@ -453,7 +453,8 @@ fn styles() -> String {
     --carbon: #2c2c2c;
     --carbon-light: #4a4a4a;
     --carbon-faded: #8a8a8a;
-    --smudge: rgba(44, 44, 44, 0.1);
+    --btn-dark: #e8e4d9;
+    --btn-darker: #ddd8c9;
     --ink-red: #8b0000;
   }
   body {
@@ -481,8 +482,12 @@ fn styles() -> String {
     flex-wrap: wrap;
     padding: 16px;
     background: var(--paper);
-    border: 1px solid var(--carbon-faded);
-    box-shadow: 2px 2px 0 var(--smudge);
+    border: 2px solid var(--carbon-faded);
+    border-radius: 1px;
+    box-shadow:
+      3px 3px 0 rgba(44,44,44,0.15),
+      5px 5px 8px rgba(44,44,44,0.08),
+      1px 1px 0 rgba(44,44,44,0.2);
   }
   .setting {
     display: flex;
@@ -499,12 +504,12 @@ fn styles() -> String {
     font-family: 'Courier New', Courier, monospace;
     padding: 4px 8px;
     border: 1px solid var(--carbon-faded);
-    background: var(--paper);
+    background: var(--btn-dark);
     font-size: 14px;
   }
   .new-round-btn {
     padding: 8px 16px;
-    background: var(--paper);
+    background: var(--btn-darker);
     color: var(--ink-red);
     border: 2px solid var(--ink-red);
     cursor: pointer;
@@ -513,6 +518,9 @@ fn styles() -> String {
     text-transform: uppercase;
     font-size: 11px;
     letter-spacing: 1px;
+    box-shadow:
+      2px 2px 0 rgba(139,0,0,0.2),
+      3px 3px 6px rgba(44,44,44,0.1);
   }
   .new-round-btn:hover {
     background: var(--ink-red);
@@ -529,16 +537,22 @@ fn styles() -> String {
     }
   }
   .player-hand {
-    border: 1px solid var(--carbon-faded);
     padding: 12px;
     background: var(--paper);
-    box-shadow: 2px 2px 0 var(--smudge);
+    border: 2px solid var(--carbon-faded);
+    box-shadow:
+      2px 2px 0 rgba(44,44,44,0.12),
+      4px 4px 8px rgba(44,44,44,0.06),
+      1px 0 0 rgba(44,44,44,0.15);
   }
   .player-hand.winner {
     border-color: var(--carbon);
-    border-width: 2px;
+    border-width: 3px;
     background: var(--paper);
-    box-shadow: 3px 3px 0 var(--smudge), inset 0 0 20px rgba(139, 0, 0, 0.05);
+    box-shadow:
+      3px 3px 0 rgba(44,44,44,0.18),
+      5px 5px 10px rgba(44,44,44,0.08),
+      inset 0 0 30px rgba(139, 0, 0, 0.04);
   }
   .player-hand.winner .hand-header h3::after {
     content: ' ★';
@@ -597,27 +611,33 @@ fn styles() -> String {
   .scoring-item {
     padding: 4px 8px;
     border: 1px solid var(--carbon-faded);
-    background: var(--paper);
+    background: var(--btn-dark);
     cursor: pointer;
     font-size: 11px;
     font-family: 'Courier New', Courier, monospace;
+    box-shadow: 1px 1px 0 rgba(44,44,44,0.1);
   }
   .scoring-item.add {
-    background: var(--paper);
+    background: var(--btn-dark);
     border-color: var(--carbon-faded);
   }
   .scoring-item.add:hover {
-    background: var(--cream);
+    background: var(--btn-darker);
     border-color: var(--carbon);
+    box-shadow:
+      1px 1px 0 rgba(44,44,44,0.15),
+      2px 2px 4px rgba(44,44,44,0.08);
   }
   .scoring-item.in-hand {
-    background: var(--cream);
-    border-color: var(--carbon);
+    background: var(--btn-darker);
+    border: 2px solid var(--carbon);
     font-weight: bold;
-    box-shadow: 1px 1px 0 var(--smudge);
+    box-shadow:
+      2px 2px 0 rgba(44,44,44,0.15),
+      3px 3px 6px rgba(44,44,44,0.06);
   }
   .scoring-item.in-hand:hover {
-    background: #f0e0e0;
+    background: #e0d5c5;
     border-color: var(--ink-red);
   }
   "
