@@ -11,19 +11,30 @@ import lustre/event
 
 pub type ScoringItem {
   // Pungs (3 of a kind)
-  Pung              // 2-8 revealed: 2 pts
-  PungHonors        // 1,9,W,D revealed: 4 pts
-  PungHidden        // 2-8 hidden: 4 pts
-  PungHonorsHidden  // 1,9,W,D hidden: 8 pts
+  Pung
+  // 2-8 revealed: 2 pts
+  PungHonors
+  // 1,9,W,D revealed: 4 pts
+  PungHidden
+  // 2-8 hidden: 4 pts
+  PungHonorsHidden
+  // 1,9,W,D hidden: 8 pts
   // Kongs (4 of a kind)
-  Kong              // 2-8 revealed: 8 pts
-  KongHonors        // 1,9,W,D revealed: 16 pts
-  KongHidden        // 2-8 hidden: 16 pts
-  KongHonorsHidden  // 1,9,W,D hidden: 32 pts
+  Kong
+  // 2-8 revealed: 8 pts
+  KongHonors
+  // 1,9,W,D revealed: 16 pts
+  KongHidden
+  // 2-8 hidden: 16 pts
+  KongHonorsHidden
+  // 1,9,W,D hidden: 32 pts
   // Bonuses
-  BonusPairWind     // Pair of own/prevailing wind
-  BonusPairDragon   // Pair of dragon
-  BonusFlower       // Flower: 4 pts
+  BonusPairWind
+  // Pair of own/prevailing wind
+  BonusPairDragon
+  // Pair of dragon
+  BonusFlower
+  // Flower: 4 pts
 }
 
 fn item_points(item: ScoringItem) -> Int {
@@ -97,12 +108,12 @@ fn empty_hand() -> PlayerHand {
 }
 
 fn init(_flags) -> Model {
-  Model(
-    east_wind: Player1,
-    prevailing_wind: East,
-    winner: None,
-    hands: #(empty_hand(), empty_hand(), empty_hand(), empty_hand()),
-  )
+  Model(east_wind: Player1, prevailing_wind: East, winner: None, hands: #(
+    empty_hand(),
+    empty_hand(),
+    empty_hand(),
+    empty_hand(),
+  ))
 }
 
 // --- Messages ---
@@ -207,7 +218,8 @@ fn remove_at(items: List(a), index: Int) -> List(a) {
 // --- Scoring ---
 
 fn calculate_hand_points(hand: PlayerHand, is_winner: Bool) -> Int {
-  let base = list.fold(hand.items, 0, fn(total, item) { total + item_points(item) })
+  let base =
+    list.fold(hand.items, 0, fn(total, item) { total + item_points(item) })
   case is_winner {
     True -> base + 20
     False -> base
@@ -278,7 +290,10 @@ fn wind_option(wind: Wind, selected: Wind) -> Element(Msg) {
   )
 }
 
-fn winner_option(winner: Option(Player), selected: Option(Player)) -> Element(Msg) {
+fn winner_option(
+  winner: Option(Player),
+  selected: Option(Player),
+) -> Element(Msg) {
   let label = case winner {
     None -> "None"
     Some(p) -> player_to_string(p)
@@ -326,10 +341,9 @@ fn view_player_hand(
       h3([], [text(player_to_string(player) <> east_marker <> winner_marker)]),
       span([class("points")], [text(int.to_string(points) <> " pts")]),
     ]),
-    div([class("hand-items")],
-      list.index_map(hand.items, fn(item, i) {
-        removable_item(player, item, i)
-      }),
+    div(
+      [class("hand-items")],
+      list.index_map(hand.items, fn(item, i) { removable_item(player, item, i) }),
     ),
     div([class("add-section")], [
       div([class("add-row")], [
