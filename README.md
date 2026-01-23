@@ -1,24 +1,15 @@
-# alley_mah_jong
+# Alley Mah-jong
 
-[![Package Version](https://img.shields.io/hexpm/v/alley_mah_jong)](https://hex.pm/packages/alley_mah_jong)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/alley_mah_jong/)
+Mah-jong scoring app for the Alley family.
 
-```sh
-gleam add alley_mah_jong@1
-```
-```gleam
-import alley_mah_jong
-
-pub fn main() -> Nil {
-  // TODO: An example of the project in use
-}
-```
-
-Further documentation can be found at <https://hexdocs.pm/alley_mah_jong>.
+Built with [Gleam](https://gleam.run/) and [Lustre](https://lustre.build/).
 
 ## Development
 
 ```sh
-gleam run   # Run the project
-gleam test  # Run the tests
+gleam run -m lustre/dev start  # Start dev server with hot reload
+gleam test                     # Run tests
+gleam build                    # Build the project
 ```
+
+The dev server will start at http://localhost:1234 by default.
