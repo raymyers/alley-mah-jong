@@ -720,7 +720,7 @@ fn styles() -> String {
   }
   .scoring-item.in-hand:hover {
     background: #e0d5c5;
-    border-color: var(--ink-red);
+    border-color: var(--ink-purple);
   }
   "
 }
