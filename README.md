@@ -1,6 +1,6 @@
 # Alley Mah-jong
 
-Mah-jong scoring app for the Alley family.
+Mah-jong scoring app for the Alley family. Available online at [https://raymyers.github.io/alley-mah-jong](https://raymyers.github.io/alley-mah-jong)
 
 Built with [Gleam](https://gleam.run/) and [Lustre](https://lustre.build/).
 
