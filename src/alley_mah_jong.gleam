@@ -456,6 +456,7 @@ fn styles() -> String {
     --btn-dark: #e8e4d9;
     --btn-darker: #ddd8c9;
     --ink-red: #8b0000;
+    --ink-purple: #4a235a;
   }
   body {
     background: var(--cream);
@@ -510,8 +511,8 @@ fn styles() -> String {
   .new-round-btn {
     padding: 8px 16px;
     background: var(--btn-darker);
-    color: var(--ink-red);
-    border: 2px solid var(--ink-red);
+    color: var(--ink-purple);
+    border: 2px solid var(--ink-purple);
     cursor: pointer;
     font-family: 'Courier New', Courier, monospace;
     font-weight: bold;
@@ -519,11 +520,11 @@ fn styles() -> String {
     font-size: 11px;
     letter-spacing: 1px;
     box-shadow:
-      2px 2px 0 rgba(139,0,0,0.2),
+      2px 2px 0 rgba(74,35,90,0.2),
       3px 3px 6px rgba(44,44,44,0.1);
   }
   .new-round-btn:hover {
-    background: var(--ink-red);
+    background: var(--ink-purple);
     color: var(--paper);
   }
   .all-hands {
