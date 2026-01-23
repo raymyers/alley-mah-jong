@@ -9,7 +9,9 @@ What's in every hand: hidden and revealed.
 
 Scoring selector. We select a series of secong items for each player
 
-# Scoring items
+### Scoring item descriptions
+
+
 * Pung of 2-8
 * Pung of Honors (1-9, W, D)
 * Kong of 2-8
@@ -21,7 +23,17 @@ Scoring selector. We select a series of secong items for each player
 
 For Pungs and Kong, we need to track if they are hidden.
 
-## Scoring item notation
+### Input display
+
+UI represents hidden status positionally. There's a revealed row and a hidden row.
+
+The UI should use descriptions, not the raw notation.
+
+Selection doesn't need score number, but once selected we should see it.
+
+### Scoring item notation
+
+Used internally and for testing.
 
 ```
 p
