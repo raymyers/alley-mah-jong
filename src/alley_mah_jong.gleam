@@ -7,19 +7,62 @@ import lustre/element.{type Element, text}
 import lustre/element/html.{button, div, h1, h2, h3, option, select, span}
 import lustre/event
 
-// --- Tiles ---
+// --- Scoring Items ---
 
-pub type Suit {
-  Sticks
-  Circles
-  Characters
+pub type ScoringItem {
+  // Pungs (3 of a kind)
+  Pung          // 2-8 revealed: 2 pts
+  PungHonors    // 1,9,W,D revealed: 4 pts
+  PungHidden    // 2-8 hidden: 4 pts
+  PungHonorsHidden  // 1,9,W,D hidden: 8 pts
+  // Kongs (4 of a kind)
+  Kong          // 2-8 revealed: 8 pts
+  KongHonors    // 1,9,W,D revealed: 16 pts
+  KongHidden    // 2-8 hidden: 16 pts
+  KongHonorsHidden  // 1,9,W,D hidden: 32 pts
+  // Bonuses
+  BonusPairWind    // Pair of own/prevailing wind
+  BonusPairDragon  // Pair of dragon
+  BonusFlower      // Flower: 4 pts
+  // Winning
+  MahJong          // 20 pts
 }
 
-pub type Dragon {
-  GreenDragon
-  RedDragon
-  WhiteDragon
+fn item_points(item: ScoringItem) -> Int {
+  case item {
+    Pung -> 2
+    PungHonors -> 4
+    PungHidden -> 4
+    PungHonorsHidden -> 8
+    Kong -> 8
+    KongHonors -> 16
+    KongHidden -> 16
+    KongHonorsHidden -> 32
+    BonusPairWind -> 0  // Contributes to doubles, not base points
+    BonusPairDragon -> 0
+    BonusFlower -> 4
+    MahJong -> 20
+  }
 }
+
+fn item_code(item: ScoringItem) -> String {
+  case item {
+    Pung -> "p"
+    PungHonors -> "ph"
+    PungHidden -> "hp"
+    PungHonorsHidden -> "hph"
+    Kong -> "k"
+    KongHonors -> "kh"
+    KongHidden -> "hk"
+    KongHonorsHidden -> "hkh"
+    BonusPairWind -> "bpw"
+    BonusPairDragon -> "bpd"
+    BonusFlower -> "bf"
+    MahJong -> "mj"
+  }
+}
+
+// --- Model ---
 
 pub type Wind {
   North
@@ -28,20 +71,6 @@ pub type Wind {
   West
 }
 
-pub type FlowerColor {
-  BlueFlower
-  RedFlower
-}
-
-pub type Tile {
-  SuitTile(suit: Suit, value: Int)
-  DragonTile(Dragon)
-  WindTile(Wind)
-  FlowerTile(color: FlowerColor, number: Int)
-}
-
-// --- Model ---
-
 pub type Player {
   Player1
   Player2
@@ -49,8 +78,8 @@ pub type Player {
   Player4
 }
 
-pub type Hand {
-  Hand(hidden: List(Tile), revealed: List(Tile))
+pub type PlayerHand {
+  PlayerHand(items: List(ScoringItem))
 }
 
 pub type Model {
@@ -58,19 +87,13 @@ pub type Model {
     east_wind: Player,
     prevailing_wind: Wind,
     winner: Option(Player),
-    hands: #(Hand, Hand, Hand, Hand),
+    hands: #(PlayerHand, PlayerHand, PlayerHand, PlayerHand),
     selected_player: Player,
-    adding_to: AddingTo,
   )
 }
 
-pub type AddingTo {
-  Hidden
-  Revealed
-}
-
-fn empty_hand() -> Hand {
-  Hand(hidden: [], revealed: [])
+fn empty_hand() -> PlayerHand {
+  PlayerHand(items: [])
 }
 
 fn init(_flags) -> Model {
@@ -80,7 +103,6 @@ fn init(_flags) -> Model {
     winner: None,
     hands: #(empty_hand(), empty_hand(), empty_hand(), empty_hand()),
     selected_player: Player1,
-    adding_to: Hidden,
   )
 }
 
@@ -91,9 +113,8 @@ pub type Msg {
   SetPrevailingWind(Wind)
   SetWinner(Option(Player))
   SelectPlayer(Player)
-  SetAddingTo(AddingTo)
-  AddTile(Tile)
-  RemoveTile(Player, AddingTo, Int)
+  AddItem(ScoringItem)
+  RemoveItem(Player, Int)
 }
 
 // --- Update ---
@@ -104,90 +125,77 @@ fn update(model: Model, msg: Msg) -> Model {
     SetPrevailingWind(wind) -> Model(..model, prevailing_wind: wind)
     SetWinner(winner) -> Model(..model, winner: winner)
     SelectPlayer(player) -> Model(..model, selected_player: player)
-    SetAddingTo(adding_to) -> Model(..model, adding_to: adding_to)
-    AddTile(tile) -> add_tile_to_hand(model, tile)
-    RemoveTile(player, adding_to, index) ->
-      remove_tile_from_hand(model, player, adding_to, index)
+    AddItem(item) -> add_item_to_hand(model, item)
+    RemoveItem(player, index) -> remove_item_from_hand(model, player, index)
   }
 }
 
-fn add_tile_to_hand(model: Model, tile: Tile) -> Model {
+fn add_item_to_hand(model: Model, item: ScoringItem) -> Model {
   let hands = case model.selected_player {
     Player1 -> #(
-      add_to_hand(model.hands.0, tile, model.adding_to),
+      add_to_hand(model.hands.0, item),
       model.hands.1,
       model.hands.2,
       model.hands.3,
     )
     Player2 -> #(
       model.hands.0,
-      add_to_hand(model.hands.1, tile, model.adding_to),
+      add_to_hand(model.hands.1, item),
       model.hands.2,
       model.hands.3,
     )
     Player3 -> #(
       model.hands.0,
       model.hands.1,
-      add_to_hand(model.hands.2, tile, model.adding_to),
+      add_to_hand(model.hands.2, item),
       model.hands.3,
     )
     Player4 -> #(
       model.hands.0,
       model.hands.1,
       model.hands.2,
-      add_to_hand(model.hands.3, tile, model.adding_to),
+      add_to_hand(model.hands.3, item),
     )
   }
   Model(..model, hands: hands)
 }
 
-fn add_to_hand(hand: Hand, tile: Tile, adding_to: AddingTo) -> Hand {
-  case adding_to {
-    Hidden -> Hand(..hand, hidden: list.append(hand.hidden, [tile]))
-    Revealed -> Hand(..hand, revealed: list.append(hand.revealed, [tile]))
-  }
+fn add_to_hand(hand: PlayerHand, item: ScoringItem) -> PlayerHand {
+  PlayerHand(items: list.append(hand.items, [item]))
 }
 
-fn remove_tile_from_hand(
-  model: Model,
-  player: Player,
-  adding_to: AddingTo,
-  index: Int,
-) -> Model {
+fn remove_item_from_hand(model: Model, player: Player, index: Int) -> Model {
   let hands = case player {
     Player1 -> #(
-      remove_from_hand(model.hands.0, adding_to, index),
+      remove_from_hand(model.hands.0, index),
       model.hands.1,
       model.hands.2,
       model.hands.3,
     )
     Player2 -> #(
       model.hands.0,
-      remove_from_hand(model.hands.1, adding_to, index),
+      remove_from_hand(model.hands.1, index),
       model.hands.2,
       model.hands.3,
     )
     Player3 -> #(
       model.hands.0,
       model.hands.1,
-      remove_from_hand(model.hands.2, adding_to, index),
+      remove_from_hand(model.hands.2, index),
       model.hands.3,
     )
     Player4 -> #(
       model.hands.0,
       model.hands.1,
       model.hands.2,
-      remove_from_hand(model.hands.3, adding_to, index),
+      remove_from_hand(model.hands.3, index),
     )
   }
   Model(..model, hands: hands)
 }
 
-fn remove_from_hand(hand: Hand, adding_to: AddingTo, index: Int) -> Hand {
-  case adding_to {
-    Hidden -> Hand(..hand, hidden: remove_at(hand.hidden, index))
-    Revealed -> Hand(..hand, revealed: remove_at(hand.revealed, index))
-  }
+fn remove_from_hand(hand: PlayerHand, index: Int) -> PlayerHand {
+  PlayerHand(items: remove_at(hand.items, index))
 }
 
 fn remove_at(items: List(a), index: Int) -> List(a) {
@@ -199,6 +207,12 @@ fn remove_at(items: List(a), index: Int) -> List(a) {
   })
 }
 
+// --- Scoring ---
+
+fn calculate_hand_points(hand: PlayerHand) -> Int {
+  list.fold(hand.items, 0, fn(total, item) { total + item_points(item) })
+}
+
 // --- View ---
 
 fn view(model: Model) -> Element(Msg) {
@@ -207,8 +221,7 @@ fn view(model: Model) -> Element(Msg) {
     h1([], [text("Alley Mah-jong")]),
     view_round_settings(model),
     view_player_tabs(model),
-    view_adding_toggle(model),
-    view_tile_palette(),
+    view_scoring_palette(),
     view_all_hands(model),
   ])
 }
@@ -304,89 +317,47 @@ fn player_tab(player: Player, selected: Player, east: Player) -> Element(Msg) {
   )
 }
 
-fn view_adding_toggle(model: Model) -> Element(Msg) {
-  div([class("adding-toggle")], [
-    html.label([], [text("Add tiles to: ")]),
-    button(
-      [
-        class(case model.adding_to {
-          Hidden -> "toggle-btn selected"
-          Revealed -> "toggle-btn"
-        }),
-        event.on_click(SetAddingTo(Hidden)),
-      ],
-      [text("Hidden")],
-    ),
-    button(
-      [
-        class(case model.adding_to {
-          Revealed -> "toggle-btn selected"
-          Hidden -> "toggle-btn"
-        }),
-        event.on_click(SetAddingTo(Revealed)),
-      ],
-      [text("Revealed")],
-    ),
-  ])
-}
-
-fn view_tile_palette() -> Element(Msg) {
-  div([class("tile-palette")], [
-    h2([], [text("Tiles")]),
-    div([class("tile-section")], [
-      h3([], [text("Sticks")]),
-      div([class("tile-row")], list.map(list.range(1, 9), fn(n) {
-        tile_button(SuitTile(Sticks, n))
-      })),
-    ]),
-    div([class("tile-section")], [
-      h3([], [text("Circles")]),
-      div([class("tile-row")], list.map(list.range(1, 9), fn(n) {
-        tile_button(SuitTile(Circles, n))
-      })),
-    ]),
-    div([class("tile-section")], [
-      h3([], [text("Characters")]),
-      div([class("tile-row")], list.map(list.range(1, 9), fn(n) {
-        tile_button(SuitTile(Characters, n))
-      })),
-    ]),
-    div([class("tile-section")], [
-      h3([], [text("Dragons")]),
-      div([class("tile-row")], [
-        tile_button(DragonTile(GreenDragon)),
-        tile_button(DragonTile(RedDragon)),
-        tile_button(DragonTile(WhiteDragon)),
+fn view_scoring_palette() -> Element(Msg) {
+  div([class("scoring-palette")], [
+    h2([], [text("Add Scoring Items")]),
+    div([class("item-section")], [
+      h3([], [text("Pungs (3 of a kind)")]),
+      div([class("item-row")], [
+        item_button(Pung),
+        item_button(PungHonors),
+        item_button(PungHidden),
+        item_button(PungHonorsHidden),
       ]),
     ]),
-    div([class("tile-section")], [
-      h3([], [text("Winds")]),
-      div([class("tile-row")], [
-        tile_button(WindTile(East)),
-        tile_button(WindTile(South)),
-        tile_button(WindTile(West)),
-        tile_button(WindTile(North)),
+    div([class("item-section")], [
+      h3([], [text("Kongs (4 of a kind)")]),
+      div([class("item-row")], [
+        item_button(Kong),
+        item_button(KongHonors),
+        item_button(KongHidden),
+        item_button(KongHonorsHidden),
       ]),
     ]),
-    div([class("tile-section")], [
-      h3([], [text("Flowers")]),
-      div([class("tile-row")], [
-        tile_button(FlowerTile(BlueFlower, 1)),
-        tile_button(FlowerTile(BlueFlower, 2)),
-        tile_button(FlowerTile(BlueFlower, 3)),
-        tile_button(FlowerTile(BlueFlower, 4)),
-        tile_button(FlowerTile(RedFlower, 1)),
-        tile_button(FlowerTile(RedFlower, 2)),
-        tile_button(FlowerTile(RedFlower, 3)),
-        tile_button(FlowerTile(RedFlower, 4)),
+    div([class("item-section")], [
+      h3([], [text("Bonuses")]),
+      div([class("item-row")], [
+        item_button(BonusPairWind),
+        item_button(BonusPairDragon),
+        item_button(BonusFlower),
+        item_button(MahJong),
       ]),
     ]),
   ])
 }
 
-fn tile_button(tile: Tile) -> Element(Msg) {
-  button([class("tile"), event.on_click(AddTile(tile))], [
-    text(tile_to_string(tile)),
+fn item_button(item: ScoringItem) -> Element(Msg) {
+  let pts = item_points(item)
+  let pts_text = case pts {
+    0 -> ""
+    n -> " (" <> int.to_string(n) <> ")"
+  }
+  button([class("scoring-item"), event.on_click(AddItem(item))], [
+    text(item_code(item) <> pts_text),
   ])
 }
 
@@ -402,7 +373,7 @@ fn view_all_hands(model: Model) -> Element(Msg) {
 
 fn view_player_hand(
   player: Player,
-  hand: Hand,
+  hand: PlayerHand,
   east: Player,
   winner: Option(Player),
 ) -> Element(Msg) {
@@ -418,38 +389,24 @@ fn view_player_hand(
     Some(w) if w == player -> "player-hand winner"
     _ -> "player-hand"
   }
+  let points = calculate_hand_points(hand)
   div([class(hand_class)], [
-    h3([], [text(player_to_string(player) <> east_marker <> winner_marker)]),
-    div([class("hand-section")], [
-      span([class("hand-label")], [text("Hidden: ")]),
-      div(
-        [class("tiles")],
-        list.index_map(hand.hidden, fn(tile, i) {
-          removable_tile(player, Hidden, tile, i)
-        }),
-      ),
+    h3([], [
+      text(player_to_string(player) <> east_marker <> winner_marker),
+      span([class("points")], [text(" - " <> int.to_string(points) <> " pts")]),
     ]),
-    div([class("hand-section")], [
-      span([class("hand-label")], [text("Revealed: ")]),
-      div(
-        [class("tiles")],
-        list.index_map(hand.revealed, fn(tile, i) {
-          removable_tile(player, Revealed, tile, i)
-        }),
-      ),
-    ]),
+    div([class("hand-items")],
+      list.index_map(hand.items, fn(item, i) {
+        removable_item(player, item, i)
+      }),
+    ),
   ])
 }
 
-fn removable_tile(
-  player: Player,
-  adding_to: AddingTo,
-  tile: Tile,
-  index: Int,
-) -> Element(Msg) {
+fn removable_item(player: Player, item: ScoringItem, index: Int) -> Element(Msg) {
   button(
-    [class("tile in-hand"), event.on_click(RemoveTile(player, adding_to, index))],
-    [text(tile_to_string(tile))],
+    [class("scoring-item in-hand"), event.on_click(RemoveItem(player, index))],
+    [text(item_code(item))],
   )
 }
 
@@ -503,23 +460,6 @@ fn parse_winner(s: String) -> Option(Player) {
   }
 }
 
-fn tile_to_string(tile: Tile) -> String {
-  case tile {
-    SuitTile(Sticks, n) -> int.to_string(n) <> "S"
-    SuitTile(Circles, n) -> int.to_string(n) <> "C"
-    SuitTile(Characters, n) -> int.to_string(n) <> "W"
-    DragonTile(GreenDragon) -> "DG"
-    DragonTile(RedDragon) -> "DR"
-    DragonTile(WhiteDragon) -> "DW"
-    WindTile(East) -> "E"
-    WindTile(South) -> "S"
-    WindTile(West) -> "W"
-    WindTile(North) -> "N"
-    FlowerTile(BlueFlower, n) -> "B" <> int.to_string(n)
-    FlowerTile(RedFlower, n) -> "R" <> int.to_string(n)
-  }
-}
-
 fn styles() -> String {
   "
   .app {
@@ -555,58 +495,41 @@ fn styles() -> String {
     color: white;
     border-color: #007bff;
   }
-  .adding-toggle {
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .toggle-btn {
-    padding: 6px 12px;
-    border: 1px solid #ccc;
-    background: #f5f5f5;
-    cursor: pointer;
-  }
-  .toggle-btn.selected {
-    background: #28a745;
-    color: white;
-    border-color: #28a745;
-  }
-  .tile-palette {
+  .scoring-palette {
     background: #f9f9f9;
     padding: 16px;
     border-radius: 8px;
     margin-bottom: 20px;
   }
-  .tile-section {
+  .item-section {
     margin-bottom: 12px;
   }
-  .tile-section h3 {
+  .item-section h3 {
     margin: 0 0 8px 0;
     font-size: 14px;
     color: #666;
   }
-  .tile-row {
+  .item-row {
     display: flex;
-    gap: 4px;
+    gap: 8px;
     flex-wrap: wrap;
   }
-  .tile {
-    width: 36px;
-    height: 48px;
+  .scoring-item {
+    padding: 8px 12px;
     border: 1px solid #999;
     background: #fff;
     cursor: pointer;
     font-weight: bold;
-    font-size: 12px;
+    font-size: 14px;
+    border-radius: 4px;
   }
-  .tile:hover {
+  .scoring-item:hover {
     background: #e0e0e0;
   }
-  .tile.in-hand {
+  .scoring-item.in-hand {
     background: #fffde7;
   }
-  .tile.in-hand:hover {
+  .scoring-item.in-hand:hover {
     background: #ffcdd2;
   }
   .all-hands {
@@ -625,20 +548,15 @@ fn styles() -> String {
   .player-hand h3 {
     margin: 0 0 8px 0;
   }
-  .hand-section {
-    display: flex;
-    align-items: center;
-    margin-bottom: 8px;
+  .points {
+    font-weight: normal;
+    color: #666;
   }
-  .hand-label {
-    width: 80px;
-    font-weight: bold;
-  }
-  .tiles {
+  .hand-items {
     display: flex;
-    gap: 4px;
+    gap: 8px;
     flex-wrap: wrap;
-    min-height: 48px;
+    min-height: 40px;
   }
   "
 }
