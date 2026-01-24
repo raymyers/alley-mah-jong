@@ -1,6 +1,7 @@
 import engine.{
-  DoublesContext, calculate_doubles, calculate_multiplier, calculate_round_score,
-  max_round_score, no_doubles,
+  Clean, Dirty, DoublesContext, Limit, PlayerHand, Pung, calculate_doubles,
+  calculate_final_score, calculate_multiplier, calculate_round_score,
+  limit_score, limit_score_east, max_round_score, no_doubles,
 }
 import gleeunit
 
@@ -181,4 +182,57 @@ pub fn round_score_high_multiplier_capped_test() {
 pub fn round_score_no_multiplier_test() {
   // 500 pts * 1x = 500
   assert calculate_round_score(500, 1) == 500
+}
+
+// --- Final Score Calculation ---
+
+pub fn limit_score_constants_test() {
+  assert limit_score == 500
+  assert limit_score_east == 1000
+}
+
+pub fn dirty_hand_scores_zero_test() {
+  let hand = PlayerHand(items: [Pung])
+  let #(points, mult, dbl) =
+    calculate_final_score(hand, Dirty, no_doubles(), False, False)
+  assert points == 0
+  assert mult == 1
+  assert dbl == 0
+}
+
+pub fn limit_hand_scores_500_test() {
+  let hand = PlayerHand(items: [])
+  let #(points, mult, dbl) =
+    calculate_final_score(hand, Limit, no_doubles(), False, False)
+  assert points == 500
+  assert mult == 1
+  assert dbl == 0
+}
+
+pub fn limit_hand_east_scores_1000_test() {
+  let hand = PlayerHand(items: [])
+  let #(points, mult, dbl) =
+    calculate_final_score(hand, Limit, no_doubles(), False, True)
+  assert points == 1000
+  assert mult == 1
+  assert dbl == 0
+}
+
+pub fn clean_hand_calculates_normally_test() {
+  let hand = PlayerHand(items: [Pung])
+  // Pung = 2 pts, clean = 1 double = 2x, total = 4
+  let #(points, mult, dbl) =
+    calculate_final_score(hand, Clean, no_doubles(), False, False)
+  assert points == 4
+  assert mult == 2
+  assert dbl == 1
+}
+
+pub fn clean_hand_winner_gets_bonus_test() {
+  let hand = PlayerHand(items: [Pung])
+  // Pung = 2 pts + 20 mahjong bonus = 22, clean = 2x, total = 44
+  let #(points, mult, _) =
+    calculate_final_score(hand, Clean, no_doubles(), True, False)
+  assert points == 44
+  assert mult == 2
 }

@@ -240,6 +240,14 @@ fn hand_status_to_storage(status: HandStatus) -> storage.HandStatus {
   }
 }
 
+fn hand_status_to_engine(status: HandStatus) -> engine.HandStatus {
+  case status {
+    Dirty -> engine.Dirty
+    Clean -> engine.Clean
+    Limit -> engine.Limit
+  }
+}
+
 fn hand_status_from_storage(status: storage.HandStatus) -> HandStatus {
   case status {
     storage.Dirty -> Dirty
@@ -775,28 +783,16 @@ fn view_player_hand(
     True -> "player-hand winner"
     False -> "player-hand"
   }
-  // Calculate score based on hand status
-  let #(total_points, multiplier, doubles_count) = case hand_status {
-    Dirty -> #(0, 1, 0)
-    Limit -> {
-      // Limit hands are always 500, or 1000 for East Wind
-      let limit_score = case is_east {
-        True -> 1000
-        False -> 500
-      }
-      #(limit_score, 1, 0)
-    }
-    Clean -> {
-      // Normal scoring with doubles
-      let effective_doubles =
-        DoublesContext(..doubles_ctx, is_east_wind: is_east, is_clean: True)
-      let base_points = engine.calculate_hand_points(hand, is_winner)
-      let mult = engine.calculate_multiplier(effective_doubles)
-      let points = engine.calculate_round_score(base_points, mult)
-      let dbl_count = engine.calculate_doubles(effective_doubles)
-      #(points, mult, dbl_count)
-    }
-  }
+  // Calculate score using engine
+  let engine_status = hand_status_to_engine(hand_status)
+  let #(total_points, multiplier, doubles_count) =
+    engine.calculate_final_score(
+      hand,
+      engine_status,
+      doubles_ctx,
+      is_winner,
+      is_east,
+    )
   div([class(hand_class)], [
     div([class("hand-header")], [
       h3([], [
@@ -815,35 +811,38 @@ fn view_player_hand(
     ]),
     view_hand_status_selector(player, hand_status),
     case hand_status {
-      Clean -> div([], [
-        div(
-          [class("hand-items")],
-          list.index_map(hand.items, fn(item, i) { removable_item(player, item, i) }),
-        ),
-        div([class("add-section")], [
-          div([class("add-row")], [
-            span([class("row-label")], [text("Revealed:")]),
-            item_button(player, Pung),
-            item_button(player, PungHonors),
-            item_button(player, Kong),
-            item_button(player, KongHonors),
+      Clean ->
+        div([], [
+          div(
+            [class("hand-items")],
+            list.index_map(hand.items, fn(item, i) {
+              removable_item(player, item, i)
+            }),
+          ),
+          div([class("add-section")], [
+            div([class("add-row")], [
+              span([class("row-label")], [text("Revealed:")]),
+              item_button(player, Pung),
+              item_button(player, PungHonors),
+              item_button(player, Kong),
+              item_button(player, KongHonors),
+            ]),
+            div([class("add-row")], [
+              span([class("row-label")], [text("Hidden:")]),
+              item_button(player, PungHidden),
+              item_button(player, PungHonorsHidden),
+              item_button(player, KongHidden),
+              item_button(player, KongHonorsHidden),
+            ]),
+            div([class("add-row")], [
+              span([class("row-label")], [text("Bonus:")]),
+              item_button(player, BonusPairWind),
+              item_button(player, BonusPairDragon),
+              item_button(player, BonusFlower),
+            ]),
           ]),
-          div([class("add-row")], [
-            span([class("row-label")], [text("Hidden:")]),
-            item_button(player, PungHidden),
-            item_button(player, PungHonorsHidden),
-            item_button(player, KongHidden),
-            item_button(player, KongHonorsHidden),
-          ]),
-          div([class("add-row")], [
-            span([class("row-label")], [text("Bonus:")]),
-            item_button(player, BonusPairWind),
-            item_button(player, BonusPairDragon),
-            item_button(player, BonusFlower),
-          ]),
-        ]),
-        view_doubles_section(player, doubles_ctx, is_east),
-      ])
+          view_doubles_section(player, doubles_ctx, is_east),
+        ])
       _ -> text("")
     },
   ])

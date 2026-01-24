@@ -149,6 +149,48 @@ pub fn calculate_round_score(base_points: Int, multiplier: Int) -> Int {
   }
 }
 
+// --- Hand Status ---
+
+pub type HandStatus {
+  Dirty
+  Clean
+  Limit
+}
+
+pub const limit_score = 500
+
+pub const limit_score_east = 1000
+
+/// Calculate score based on hand status, hand contents, doubles, and position
+pub fn calculate_final_score(
+  hand: PlayerHand,
+  hand_status: HandStatus,
+  doubles_ctx: DoublesContext,
+  is_winner: Bool,
+  is_east: Bool,
+) -> #(Int, Int, Int) {
+  // Returns (total_points, multiplier, doubles_count)
+  case hand_status {
+    Dirty -> #(0, 1, 0)
+    Limit -> {
+      let score = case is_east {
+        True -> limit_score_east
+        False -> limit_score
+      }
+      #(score, 1, 0)
+    }
+    Clean -> {
+      let effective_doubles =
+        DoublesContext(..doubles_ctx, is_east_wind: is_east, is_clean: True)
+      let base_points = calculate_hand_points(hand, is_winner)
+      let multiplier = calculate_multiplier(effective_doubles)
+      let points = calculate_round_score(base_points, multiplier)
+      let doubles_count = calculate_doubles(effective_doubles)
+      #(points, multiplier, doubles_count)
+    }
+  }
+}
+
 // --- Doubles ---
 
 pub type DoublesContext {
