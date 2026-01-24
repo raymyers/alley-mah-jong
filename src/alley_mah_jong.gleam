@@ -1200,6 +1200,9 @@ fn styles() -> String {
     margin-top: 10px;
     padding-top: 10px;
     border-top: 1px dashed var(--carbon-faded);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
   .double-checkbox {
     padding: 3px 6px;
