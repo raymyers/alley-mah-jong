@@ -1,4 +1,8 @@
-import engine.{East, North, Player1, Player2, Player3, Player4, South, West}
+import engine.{
+  Clean, Dirty, East, Limit, North, Player1, Player2, Player3, Player4, South,
+  West,
+}
+import gleam/option.{None, Some}
 import gleeunit
 
 pub fn main() -> Nil {
@@ -140,4 +144,74 @@ pub fn prevailing_stays_when_east_wins_test() {
     engine.next_prevailing_wind(current_prevailing, old_east, new_east)
 
   assert next_prevailing == East
+}
+
+// --- Limit Invariant Tests ---
+
+// Count limits: no limits
+pub fn count_limits_none_test() {
+  let statuses = #(Dirty, Clean, Clean, Dirty)
+  assert engine.count_limits(statuses) == 0
+}
+
+// Count limits: one limit
+pub fn count_limits_one_test() {
+  let statuses = #(Dirty, Limit, Clean, Dirty)
+  assert engine.count_limits(statuses) == 1
+}
+
+// Count limits: multiple limits
+pub fn count_limits_multiple_test() {
+  let statuses = #(Limit, Limit, Clean, Dirty)
+  assert engine.count_limits(statuses) == 2
+}
+
+// Get limit player: returns the player with limit
+pub fn get_limit_player_found_test() {
+  let statuses = #(Dirty, Clean, Limit, Dirty)
+  assert engine.get_limit_player(statuses) == Some(Player3)
+}
+
+// Get limit player: returns None if no limit
+pub fn get_limit_player_none_test() {
+  let statuses = #(Dirty, Clean, Clean, Dirty)
+  assert engine.get_limit_player(statuses) == None
+}
+
+// Get limit player: returns first if multiple (edge case)
+pub fn get_limit_player_first_test() {
+  let statuses = #(Dirty, Limit, Limit, Dirty)
+  assert engine.get_limit_player(statuses) == Some(Player2)
+}
+
+// Round is scoreable: valid with winner and no limit
+pub fn round_scoreable_clean_winner_test() {
+  let statuses = #(Clean, Dirty, Dirty, Dirty)
+  assert engine.is_round_scoreable(Some(Player1), statuses) == True
+}
+
+// Round is scoreable: valid with limit matching winner
+pub fn round_scoreable_limit_matches_winner_test() {
+  let statuses = #(Dirty, Limit, Dirty, Dirty)
+  assert engine.is_round_scoreable(Some(Player2), statuses) == True
+}
+
+// Round NOT scoreable: no winner
+pub fn round_not_scoreable_no_winner_test() {
+  let statuses = #(Clean, Dirty, Dirty, Dirty)
+  assert engine.is_round_scoreable(None, statuses) == False
+}
+
+// Round NOT scoreable: limit doesn't match winner
+pub fn round_not_scoreable_limit_mismatch_test() {
+  let statuses = #(Dirty, Limit, Dirty, Dirty)
+  // Player2 has limit but Player1 is winner
+  assert engine.is_round_scoreable(Some(Player1), statuses) == False
+}
+
+// Round NOT scoreable: multiple limits
+pub fn round_not_scoreable_multiple_limits_test() {
+  let statuses = #(Limit, Limit, Dirty, Dirty)
+  // Even if winner matches one limit, multiple limits is invalid
+  assert engine.is_round_scoreable(Some(Player1), statuses) == False
 }

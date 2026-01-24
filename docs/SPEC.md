@@ -166,9 +166,19 @@ You pay double to everyone.
 
 ## Limit Hands
 
-There are specific dirty hands with combinations that are scored for Mah-john'd players.
+There are specific dirty hands with combinations that are scored for Mah-jong'd players.
 
 TBD - list of limit hands
+
+### Limit Invariants
+
+1. If a player has a Limit hand, they must be the Mah-jong winner
+2. There cannot be multiple Limit hands in a single round
+3. A round is not scored (treated as incomplete) if these invariants are violated
+
+**UI Behavior:**
+- Selecting Limit for a player automatically sets them as the Mah-jong winner if no winner is set
+- If a winner is already set to a different player, "Multiple Mah-jongs?" warning appears in dark red
 
 ## Rotating rounds
 

@@ -173,7 +173,16 @@ fn update(model: Model, msg: Msg) -> Model {
     SetHandStatus(player, status) ->
       update_current_round(model, fn(r) {
         let statuses = set_status(r.hand_statuses, player, status)
-        storage.Round(..r, hand_statuses: statuses)
+        // When setting Limit and no winner yet, auto-set winner to this player
+        let new_winner = case status {
+          Limit ->
+            case r.winner {
+              None -> Some(player_to_storage(player))
+              existing -> existing
+            }
+          _ -> r.winner
+        }
+        storage.Round(..r, hand_statuses: statuses, winner: new_winner)
       })
 
     // Game actions
@@ -696,18 +705,34 @@ fn view_round_summary(
   running_scores: List(#(Int, Int, Int, Int)),
 ) -> Element(Msg) {
   let round_num = index + 1
-  let has_winner = option.is_some(round.winner)
+  let east = player_from_storage(round.east_wind)
+
+  // Check if round is scoreable using engine validation
+  let winner_opt = option.map(round.winner, player_from_storage)
+  let statuses = #(
+    hand_status_to_engine(hand_status_from_storage(round.hand_statuses.0)),
+    hand_status_to_engine(hand_status_from_storage(round.hand_statuses.1)),
+    hand_status_to_engine(hand_status_from_storage(round.hand_statuses.2)),
+    hand_status_to_engine(hand_status_from_storage(round.hand_statuses.3)),
+  )
+  let is_scoreable = engine.is_round_scoreable(winner_opt, statuses)
+
+  // Determine status message
   let winner_name = case round.winner {
     None -> "No winner"
-    Some(p) -> get_player_display_name(p, game.names) <> " won"
+    Some(p) -> {
+      case is_scoreable {
+        True -> get_player_display_name(p, game.names) <> " won"
+        False -> get_player_display_name(p, game.names) <> " won (invalid)"
+      }
+    }
   }
-  let east = player_from_storage(round.east_wind)
 
   // For running totals, use last completed round's running score
   let running =
     get_last_running_before(running_scores, index, game.starting_score)
 
-  let summary_class = case has_winner {
+  let summary_class = case is_scoreable {
     True -> "round-summary"
     False -> "round-summary no-winner"
   }
@@ -717,7 +742,7 @@ fn view_round_summary(
       span([class("round-number")], [text("Round " <> int.to_string(round_num))]),
       span([class("round-winner")], [text(winner_name)]),
     ]),
-    view_round_details(game, round, east, running, has_winner),
+    view_round_details(game, round, east, running, is_scoreable),
   ])
 }
 
@@ -1130,7 +1155,7 @@ fn view_player_hand(
         },
       ]),
     ]),
-    view_hand_status_selector(player, ui_hand_status),
+    view_hand_status_selector(player, ui_hand_status, winner),
     case ui_hand_status {
       Clean ->
         div([], [
@@ -1170,12 +1195,31 @@ fn view_player_hand(
   ])
 }
 
-fn view_hand_status_selector(player: Player, status: HandStatus) -> Element(Msg) {
+fn view_hand_status_selector(
+  player: Player,
+  status: HandStatus,
+  winner: Option(Player),
+) -> Element(Msg) {
+  // Check for limit conflict: player has Limit but isn't the winner
+  let has_limit_conflict = case status {
+    Limit ->
+      case winner {
+        Some(w) -> w != player
+        None -> False
+      }
+    _ -> False
+  }
+
   div([class("hand-status-row")], [
     span([class("row-label")], [text("Status:")]),
     status_button(player, status, Dirty, "Dirty"),
     status_button(player, status, Clean, "Clean"),
     status_button(player, status, Limit, "Limit"),
+    case has_limit_conflict {
+      True ->
+        span([class("limit-conflict-warning")], [text("Multiple Mah-jongs?")])
+      False -> text("")
+    },
   ])
 }
 
@@ -1471,20 +1515,21 @@ fn calculate_all_running_scores(game: Game) -> List(#(Int, Int, Int, Int)) {
         game.starting_score,
       )
     }
-    case round.winner {
-      None -> acc
-      // Skip incomplete rounds
-      Some(_) -> {
+    // Check if round is scoreable (has winner AND limit invariants satisfied)
+    let winner_opt = option.map(round.winner, player_from_storage)
+    let statuses = #(
+      hand_status_to_engine(hand_status_from_storage(round.hand_statuses.0)),
+      hand_status_to_engine(hand_status_from_storage(round.hand_statuses.1)),
+      hand_status_to_engine(hand_status_from_storage(round.hand_statuses.2)),
+      hand_status_to_engine(hand_status_from_storage(round.hand_statuses.3)),
+    )
+    case engine.is_round_scoreable(winner_opt, statuses) {
+      False -> acc
+      // Skip unscorable rounds (no winner, limit conflict, multiple limits)
+      True -> {
         let scores = calculate_round_scores(round)
         let east = player_from_storage(round.east_wind)
-        let winner =
-          option.unwrap(option.map(round.winner, player_from_storage), Player1)
-        let statuses = #(
-          hand_status_to_engine(hand_status_from_storage(round.hand_statuses.0)),
-          hand_status_to_engine(hand_status_from_storage(round.hand_statuses.1)),
-          hand_status_to_engine(hand_status_from_storage(round.hand_statuses.2)),
-          hand_status_to_engine(hand_status_from_storage(round.hand_statuses.3)),
-        )
+        let winner = option.unwrap(winner_opt, Player1)
         let payouts = engine.calculate_payouts(scores, statuses, winner, east)
         let nets = #(
           engine.net_payout(payouts.0),
@@ -2028,6 +2073,12 @@ fn styles() -> String {
     color: var(--paper);
     border-color: var(--ink-purple);
     font-weight: bold;
+  }
+  .limit-conflict-warning {
+    color: #8b0000;
+    font-size: 10px;
+    font-style: italic;
+    margin-left: 8px;
   }
   /* Doubles section */
   .doubles-section {

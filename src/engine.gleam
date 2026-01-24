@@ -3,6 +3,7 @@
 
 import gleam/int
 import gleam/list
+import gleam/option
 
 // --- Scoring Items ---
 
@@ -160,6 +161,73 @@ pub type HandStatus {
 pub const limit_score = 500
 
 pub const limit_score_east = 1000
+
+// --- Limit Invariants ---
+// 1. If there is a limit, that player must be the Mah-jong winner
+// 2. There cannot be multiple limits in a round
+// 3. Round is not scoreable if these invariants are violated
+
+/// Count how many players have Limit status
+pub fn count_limits(
+  statuses: #(HandStatus, HandStatus, HandStatus, HandStatus),
+) -> Int {
+  let count_one = fn(s: HandStatus) -> Int {
+    case s {
+      Limit -> 1
+      _ -> 0
+    }
+  }
+  count_one(statuses.0)
+  + count_one(statuses.1)
+  + count_one(statuses.2)
+  + count_one(statuses.3)
+}
+
+/// Get the player who has Limit status, if any
+pub fn get_limit_player(
+  statuses: #(HandStatus, HandStatus, HandStatus, HandStatus),
+) -> option.Option(Player) {
+  case statuses.0 {
+    Limit -> option.Some(Player1)
+    _ ->
+      case statuses.1 {
+        Limit -> option.Some(Player2)
+        _ ->
+          case statuses.2 {
+            Limit -> option.Some(Player3)
+            _ ->
+              case statuses.3 {
+                Limit -> option.Some(Player4)
+                _ -> option.None
+              }
+          }
+      }
+  }
+}
+
+/// Check if a round is valid for scoring
+/// Returns False if: no winner, multiple limits, or limit player doesn't match winner
+pub fn is_round_scoreable(
+  winner: option.Option(Player),
+  statuses: #(HandStatus, HandStatus, HandStatus, HandStatus),
+) -> Bool {
+  case winner {
+    option.None -> False
+    option.Some(w) -> {
+      let limit_count = count_limits(statuses)
+      case limit_count {
+        0 -> True
+        1 -> {
+          case get_limit_player(statuses) {
+            option.Some(limit_player) -> limit_player == w
+            option.None -> True
+          }
+        }
+        _ -> False
+      }
+    }
+  }
+}
 
 /// Calculate score based on hand status, hand contents, doubles, and position
 pub fn calculate_final_score(
