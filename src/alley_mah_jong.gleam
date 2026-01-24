@@ -1,9 +1,9 @@
 import engine.{
-  type DoublesContext, type Player, type PlayerHand, type ScoringItem, type Wind,
-  BonusFlower, BonusPairDragon, BonusPairWind, DoublesContext, East, Kong,
-  KongHidden, KongHonors, KongHonorsHidden, North, Player1, Player2, Player3,
-  Player4, PlayerHand, Pung, PungHidden, PungHonors, PungHonorsHidden, South,
-  West,
+  type DoublesContext, type Player, type PlayerHand, type PlayerPayout,
+  type ScoringItem, type Wind, BonusFlower, BonusPairDragon, BonusPairWind,
+  DoublesContext, East, Kong, KongHidden, KongHonors, KongHonorsHidden, North,
+  Player1, Player2, Player3, Player4, PlayerHand, Pung, PungHidden, PungHonors,
+  PungHonorsHidden, South, West,
 }
 import gleam/int
 import gleam/list
@@ -720,6 +720,27 @@ fn winner_option(
 }
 
 fn view_all_hands(model: Model) -> Element(Msg) {
+  // Calculate scores for all players
+  let scores = calculate_all_scores(model)
+
+  // Calculate payouts (only meaningful when there's a winner)
+  let engine_statuses = #(
+    hand_status_to_engine(model.hand_statuses.0),
+    hand_status_to_engine(model.hand_statuses.1),
+    hand_status_to_engine(model.hand_statuses.2),
+    hand_status_to_engine(model.hand_statuses.3),
+  )
+  let payouts = case model.winner {
+    Some(winner) ->
+      Some(engine.calculate_payouts(
+        scores,
+        engine_statuses,
+        winner,
+        model.east_wind,
+      ))
+    None -> None
+  }
+
   div([class("all-hands")], [
     view_player_hand(
       Player1,
@@ -729,6 +750,7 @@ fn view_all_hands(model: Model) -> Element(Msg) {
       model.east_wind,
       model.winner,
       model.names,
+      option.map(payouts, fn(p) { p.0 }),
     ),
     view_player_hand(
       Player2,
@@ -738,6 +760,7 @@ fn view_all_hands(model: Model) -> Element(Msg) {
       model.east_wind,
       model.winner,
       model.names,
+      option.map(payouts, fn(p) { p.1 }),
     ),
     view_player_hand(
       Player3,
@@ -747,6 +770,7 @@ fn view_all_hands(model: Model) -> Element(Msg) {
       model.east_wind,
       model.winner,
       model.names,
+      option.map(payouts, fn(p) { p.2 }),
     ),
     view_player_hand(
       Player4,
@@ -756,8 +780,38 @@ fn view_all_hands(model: Model) -> Element(Msg) {
       model.east_wind,
       model.winner,
       model.names,
+      option.map(payouts, fn(p) { p.3 }),
     ),
   ])
+}
+
+fn calculate_all_scores(model: Model) -> #(Int, Int, Int, Int) {
+  let score1 = calculate_player_score(model, Player1)
+  let score2 = calculate_player_score(model, Player2)
+  let score3 = calculate_player_score(model, Player3)
+  let score4 = calculate_player_score(model, Player4)
+  #(score1, score2, score3, score4)
+}
+
+fn calculate_player_score(model: Model, player: Player) -> Int {
+  let #(hand, doubles_ctx, hand_status) = case player {
+    Player1 -> #(model.hands.0, model.doubles.0, model.hand_statuses.0)
+    Player2 -> #(model.hands.1, model.doubles.1, model.hand_statuses.1)
+    Player3 -> #(model.hands.2, model.doubles.2, model.hand_statuses.2)
+    Player4 -> #(model.hands.3, model.doubles.3, model.hand_statuses.3)
+  }
+  let is_winner = model.winner == Some(player)
+  let is_east = player == model.east_wind
+  let engine_status = hand_status_to_engine(hand_status)
+  let #(total_points, _, _) =
+    engine.calculate_final_score(
+      hand,
+      engine_status,
+      doubles_ctx,
+      is_winner,
+      is_east,
+    )
+  total_points
 }
 
 fn view_player_hand(
@@ -768,6 +822,7 @@ fn view_player_hand(
   east: Player,
   winner: Option(Player),
   names: #(String, String, String, String),
+  payout: Option(PlayerPayout),
 ) -> Element(Msg) {
   let is_winner = winner == Some(player)
   let is_east = player == east
@@ -845,7 +900,44 @@ fn view_player_hand(
         ])
       _ -> text("")
     },
+    view_payout_section(payout, is_winner, names),
   ])
+}
+
+fn view_payout_section(
+  payout: Option(PlayerPayout),
+  is_winner: Bool,
+  names: #(String, String, String, String),
+) -> Element(Msg) {
+  case payout {
+    None -> text("")
+    Some(p) ->
+      div([class("payout-section")], [
+        case is_winner {
+          True -> text("")
+          False ->
+            div([class("payout-row")], [
+              span([class("payout-label")], [text("Paying:")]),
+              div(
+                [class("payout-entries")],
+                list.map(p.paying, fn(entry) {
+                  span([class("payout-entry")], [
+                    text(
+                      get_player_name(entry.to, names)
+                      <> ": "
+                      <> int.to_string(entry.amount),
+                    ),
+                  ])
+                }),
+              ),
+            ])
+        },
+        div([class("payout-row")], [
+          span([class("payout-label")], [text("Received:")]),
+          span([class("payout-amount")], [text(int.to_string(p.received))]),
+        ]),
+      ])
+  }
 }
 
 fn view_hand_status_selector(player: Player, status: HandStatus) -> Element(Msg) {
@@ -1384,6 +1476,42 @@ fn styles() -> String {
     color: var(--carbon-light);
     font-style: italic;
     padding: 3px 6px;
+  }
+  /* Payout section */
+  .payout-section {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 2px solid var(--carbon-faded);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .payout-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .payout-label {
+    font-size: 10px;
+    color: var(--carbon-light);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    width: var(--row-label-width);
+    flex-shrink: 0;
+  }
+  .payout-entries {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .payout-entry {
+    font-size: 11px;
+    color: var(--carbon);
+  }
+  .payout-amount {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--ink-purple);
   }
   "
 }

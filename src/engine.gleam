@@ -276,24 +276,24 @@ pub type PlayerPayout {
 // --- Payout Calculation ---
 
 /// Calculate payouts for all players based on scores and winner
-/// Each player pays their own score to every other player
+/// Each player pays the recipient's score, East pays double
 /// Winner only receives, never pays
 pub fn calculate_payouts(
   scores: #(Int, Int, Int, Int),
-  statuses: #(HandStatus, HandStatus, HandStatus, HandStatus),
+  _statuses: #(HandStatus, HandStatus, HandStatus, HandStatus),
   winner: Player,
-  _east: Player,
+  east: Player,
 ) -> #(PlayerPayout, PlayerPayout, PlayerPayout, PlayerPayout) {
   let players = [Player1, Player2, Player3, Player4]
 
   let p1_payout =
-    calculate_player_payout(Player1, scores, statuses, winner, players)
+    calculate_player_payout(Player1, scores, winner, east, players)
   let p2_payout =
-    calculate_player_payout(Player2, scores, statuses, winner, players)
+    calculate_player_payout(Player2, scores, winner, east, players)
   let p3_payout =
-    calculate_player_payout(Player3, scores, statuses, winner, players)
+    calculate_player_payout(Player3, scores, winner, east, players)
   let p4_payout =
-    calculate_player_payout(Player4, scores, statuses, winner, players)
+    calculate_player_payout(Player4, scores, winner, east, players)
 
   #(p1_payout, p2_payout, p3_payout, p4_payout)
 }
@@ -301,26 +301,27 @@ pub fn calculate_payouts(
 fn calculate_player_payout(
   player: Player,
   scores: #(Int, Int, Int, Int),
-  statuses: #(HandStatus, HandStatus, HandStatus, HandStatus),
   winner: Player,
+  east: Player,
   all_players: List(Player),
 ) -> PlayerPayout {
   let my_score = get_score(scores, player)
-  let my_status = get_status(statuses, player)
   let is_winner = player == winner
+  let is_east = player == east
 
   // Winner pays nothing
   let paying = case is_winner {
     True -> []
     False -> {
-      // Pay my score to all other players
+      // Pay each other player THEIR score (East pays double)
       list.filter_map(all_players, fn(other) {
         case other == player {
           True -> Error(Nil)
           False -> {
-            let amount = case my_status {
-              Dirty -> 0
-              Clean | Limit -> my_score
+            let other_score = get_score(scores, other)
+            let amount = case is_east {
+              True -> other_score * 2
+              False -> other_score
             }
             Ok(PayoutEntry(to: other, amount: amount))
           }
@@ -329,19 +330,18 @@ fn calculate_player_payout(
     }
   }
 
-  // Calculate received: sum of what others pay me
+  // Calculate received: others pay me MY score (East payers pay double)
   let received = case is_winner {
     True -> {
-      // Winner receives from all non-winners
+      // Winner receives their score from all non-winners
       list.fold(all_players, 0, fn(acc, other) {
         case other == player {
           True -> acc
           False -> {
-            let other_score = get_score(scores, other)
-            let other_status = get_status(statuses, other)
-            let amount = case other_status {
-              Dirty -> 0
-              Clean | Limit -> other_score
+            let other_is_east = other == east
+            let amount = case other_is_east {
+              True -> my_score * 2
+              False -> my_score
             }
             acc + amount
           }
@@ -349,16 +349,15 @@ fn calculate_player_payout(
       })
     }
     False -> {
-      // Non-winner receives from other non-winners only
+      // Non-winner receives their score from other non-winners
       list.fold(all_players, 0, fn(acc, other) {
         case other == player || other == winner {
           True -> acc
           False -> {
-            let other_score = get_score(scores, other)
-            let other_status = get_status(statuses, other)
-            let amount = case other_status {
-              Dirty -> 0
-              Clean | Limit -> other_score
+            let other_is_east = other == east
+            let amount = case other_is_east {
+              True -> my_score * 2
+              False -> my_score
             }
             acc + amount
           }
@@ -376,17 +375,5 @@ fn get_score(scores: #(Int, Int, Int, Int), player: Player) -> Int {
     Player2 -> scores.1
     Player3 -> scores.2
     Player4 -> scores.3
-  }
-}
-
-fn get_status(
-  statuses: #(HandStatus, HandStatus, HandStatus, HandStatus),
-  player: Player,
-) -> HandStatus {
-  case player {
-    Player1 -> statuses.0
-    Player2 -> statuses.1
-    Player3 -> statuses.2
-    Player4 -> statuses.3
   }
 }
