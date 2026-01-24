@@ -599,7 +599,7 @@ fn view_header(current_page: Page) -> Element(Msg) {
           ])
         RoundPage(_) ->
           html.a([class("nav-link"), event.on_click(GoToPage(GamePage))], [
-            text("Back to Game"),
+            text("Submit score"),
           ])
         RulesPage ->
           html.a([class("nav-link"), event.on_click(GoToPage(GamePage))], [
@@ -634,11 +634,6 @@ fn view_no_game() -> Element(Msg) {
 
 fn view_game_summary(game: Game) -> Element(Msg) {
   let running_scores = calculate_all_running_scores(game)
-  let last_round = list.last(game.rounds)
-  let can_add_round = case last_round {
-    Error(_) -> True
-    Ok(r) -> option.is_some(r.winner)
-  }
 
   div([class("game-summary")], [
     div([class("game-header")], [
@@ -653,20 +648,12 @@ fn view_game_summary(game: Game) -> Element(Msg) {
     div(
       [class("rounds-list")],
       list.index_map(game.rounds, fn(round, index) {
-        let round_running = get_running_at(running_scores, index)
-        view_round_summary(game, round, index, round_running)
+        view_round_summary(game, round, index, running_scores)
       }),
     ),
-    case can_add_round {
-      True ->
-        button([class("add-round-btn"), event.on_click(AddNewRound)], [
-          text("+ New Round"),
-        ])
-      False ->
-        div([class("round-incomplete-hint")], [
-          text("Select a winner to complete the current round"),
-        ])
-    },
+    button([class("add-round-btn"), event.on_click(AddNewRound)], [
+      text("+ New Round"),
+    ]),
   ])
 }
 
@@ -706,25 +693,54 @@ fn view_round_summary(
   game: Game,
   round: Round,
   index: Int,
-  running: #(Int, Int, Int, Int),
+  running_scores: List(#(Int, Int, Int, Int)),
 ) -> Element(Msg) {
   let round_num = index + 1
+  let has_winner = option.is_some(round.winner)
   let winner_name = case round.winner {
-    None -> "In Progress"
+    None -> "No winner"
     Some(p) -> get_player_display_name(p, game.names) <> " won"
   }
   let east = player_from_storage(round.east_wind)
 
-  div([class("round-summary"), event.on_click(GoToPage(RoundPage(index)))], [
+  // For running totals, use last completed round's running score
+  let running =
+    get_last_running_before(running_scores, index, game.starting_score)
+
+  let summary_class = case has_winner {
+    True -> "round-summary"
+    False -> "round-summary no-winner"
+  }
+
+  div([class(summary_class), event.on_click(GoToPage(RoundPage(index)))], [
     div([class("round-header")], [
       span([class("round-number")], [text("Round " <> int.to_string(round_num))]),
       span([class("round-winner")], [text(winner_name)]),
     ]),
-    case round.winner {
-      None -> text("")
-      Some(_) -> view_round_details(game, round, east, running)
-    },
+    view_round_details(game, round, east, running, has_winner),
   ])
+}
+
+fn get_last_running_before(
+  running_scores: List(#(Int, Int, Int, Int)),
+  index: Int,
+  starting_score: Int,
+) -> #(Int, Int, Int, Int) {
+  // Running scores list only contains entries for completed rounds
+  // So we get the entry at this index if it exists, otherwise the last one
+  case get_at(running_scores, index) {
+    Some(scores) -> scores
+    None ->
+      case list.last(running_scores) {
+        Ok(scores) -> scores
+        Error(_) -> #(
+          starting_score,
+          starting_score,
+          starting_score,
+          starting_score,
+        )
+      }
+  }
 }
 
 fn view_round_details(
@@ -732,6 +748,7 @@ fn view_round_details(
   round: Round,
   east: Player,
   running: #(Int, Int, Int, Int),
+  has_winner: Bool,
 ) -> Element(Msg) {
   let scores = calculate_round_scores(round)
   let statuses = #(
@@ -754,6 +771,7 @@ fn view_round_details(
       scores.0,
       payouts.0,
       running.0,
+      has_winner,
     ),
     view_player_row(
       game.names.1,
@@ -764,6 +782,7 @@ fn view_round_details(
       scores.1,
       payouts.1,
       running.1,
+      has_winner,
     ),
     view_player_row(
       game.names.2,
@@ -774,6 +793,7 @@ fn view_round_details(
       scores.2,
       payouts.2,
       running.2,
+      has_winner,
     ),
     view_player_row(
       game.names.3,
@@ -784,6 +804,7 @@ fn view_round_details(
       scores.3,
       payouts.3,
       running.3,
+      has_winner,
     ),
   ])
 }
@@ -797,33 +818,46 @@ fn view_player_row(
   score: Int,
   payout: PlayerPayout,
   running: Int,
+  has_winner: Bool,
 ) -> Element(Msg) {
   let display_name = case name {
     "" -> default
     n -> n
   }
-  let markers = {
-    let east_mark = case player == east {
-      True -> " (E)"
-      False -> ""
+  let markers = case has_winner {
+    True -> {
+      let east_mark = case player == east {
+        True -> " (E)"
+        False -> ""
+      }
+      let win_mark = case player == winner {
+        True -> " ★"
+        False -> ""
+      }
+      east_mark <> win_mark
     }
-    let win_mark = case player == winner {
-      True -> " ★"
-      False -> ""
+    False -> {
+      case player == east {
+        True -> " (E)"
+        False -> ""
+      }
     }
-    east_mark <> win_mark
   }
   let net = engine.net_payout(payout)
   let net_str = case net >= 0 {
     True -> "+" <> int.to_string(net)
     False -> int.to_string(net)
   }
+  let running_str = case has_winner {
+    True -> int.to_string(running)
+    False -> "-"
+  }
 
   div([class("player-row")], [
     span([class("player-name")], [text(display_name <> markers)]),
     span([class("player-score")], [text(int.to_string(score))]),
     span([class("player-net")], [text(net_str)]),
-    span([class("player-running")], [text(int.to_string(running))]),
+    span([class("player-running")], [text(running_str)]),
   ])
 }
 
@@ -1470,16 +1504,6 @@ fn calculate_all_running_scores(game: Game) -> List(#(Int, Int, Int, Int)) {
   })
 }
 
-fn get_running_at(
-  running_scores: List(#(Int, Int, Int, Int)),
-  index: Int,
-) -> #(Int, Int, Int, Int) {
-  case get_at(running_scores, index) {
-    Some(scores) -> scores
-    None -> #(0, 0, 0, 0)
-  }
-}
-
 fn get_at(items: List(a), index: Int) -> Option(a) {
   case items {
     [] -> None
@@ -1607,6 +1631,14 @@ fn styles() -> String {
   .round-summary:hover {
     border-color: var(--carbon);
   }
+  .round-summary.no-winner .round-details {
+    text-decoration: line-through;
+    opacity: 0.6;
+  }
+  .round-summary.no-winner .round-winner {
+    color: var(--carbon-faded);
+    font-style: italic;
+  }
   .round-header {
     display: flex;
     justify-content: space-between;
@@ -1652,12 +1684,6 @@ fn styles() -> String {
   }
   .add-round-btn:hover {
     background: var(--carbon);
-  }
-  .round-incomplete-hint {
-    font-size: 12px;
-    color: var(--carbon-light);
-    font-style: italic;
-    padding: 12px;
   }
   .new-game-btn {
     padding: 12px 24px;
