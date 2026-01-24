@@ -762,8 +762,8 @@ fn view_doubles_section(
   is_east: Bool,
 ) -> Element(Msg) {
   div([class("doubles-section")], [
-    div([class("doubles-header")], [text("Doubles")]),
-    div([class("doubles-row")], [
+    div([class("add-row")], [
+      span([class("row-label")], [text("Doubles:")]),
       double_checkbox(player, ctx, IsClean, "Clean"),
       double_checkbox(player, ctx, HasDragonPungOrKong, "Dragon P/K"),
       double_checkbox(player, ctx, HasOwnWindPungOrKong, "Own Wind P/K"),
@@ -774,18 +774,24 @@ fn view_doubles_section(
         "Prevail Wind P/K",
       ),
     ]),
-    div([class("doubles-row")], [
+    div([class("add-row")], [
+      span([class("row-label")], []),
       double_checkbox(player, ctx, HasBothOwnFlowers, "Both Flowers"),
       case is_east {
         True -> span([class("double-auto")], [text("East Wind (auto)")])
         False -> text("")
       },
     ]),
-    div([class("doubles-row doubles-triple")], [
+    div([class("add-row")], [
       span([class("row-label")], [text("3x:")]),
       double_checkbox(player, ctx, HasAllRedFlowers, "All Red Flowers"),
       double_checkbox(player, ctx, HasAllBlueFlowers, "All Blue Flowers"),
-      double_checkbox(player, ctx, IsCleanNoWindsOrDragons, "Pure Clean"),
+      double_checkbox(
+        player,
+        ctx,
+        IsCleanNoWindsOrDragons,
+        "Clean No Winds/Dragons",
+      ),
     ]),
   ])
 }
@@ -1194,25 +1200,6 @@ fn styles() -> String {
     margin-top: 10px;
     padding-top: 10px;
     border-top: 1px dashed var(--carbon-faded);
-  }
-  .doubles-header {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--carbon-light);
-    margin-bottom: 6px;
-  }
-  .doubles-row {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-    margin-bottom: 4px;
-    align-items: center;
-  }
-  .doubles-triple {
-    margin-top: 6px;
-    padding-top: 6px;
-    border-top: 1px dotted var(--carbon-faded);
   }
   .double-checkbox {
     padding: 3px 6px;
