@@ -3,9 +3,9 @@
 
 import engine.{
   type DoublesContext, type PlayerHand, type ScoringItem, BonusFlower,
-  BonusPairDragon, BonusPairWind, Clean, Dirty, DoublesContext, Kong,
-  KongHidden, KongHonors, KongHonorsHidden, Limit, PlayerHand, Pung,
-  PungHidden, PungHonors, PungHonorsHidden, calculate_final_score, no_doubles,
+  BonusPairDragon, BonusPairWind, Clean, Dirty, DoublesContext, Kong, KongHidden,
+  KongHonors, KongHonorsHidden, Limit, PlayerHand, Pung, PungHidden, PungHonors,
+  PungHonorsHidden, calculate_final_score, no_doubles,
 }
 import gleam/dict
 import gleam/int

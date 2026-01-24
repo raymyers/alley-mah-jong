@@ -111,7 +111,7 @@ Here is the order of scoring:
 2. East wind (unless Mah-jong'd)
 3. Other players, order doesn't matter
 
-Each of the other 3 player will pay them what the Mah-jong'd player's hand is worth.
+Winners receive only. All non winners pay the 3 other players the value of their round score (the score of the player being paid). 
 
 Mah-jong'd players are scored regardless of clean or dirty status.
 

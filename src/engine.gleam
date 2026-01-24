@@ -262,3 +262,131 @@ fn power_of_two(n: Int) -> Int {
     _ -> 2 * power_of_two(n - 1)
   }
 }
+
+// --- Payout Types ---
+
+pub type PayoutEntry {
+  PayoutEntry(to: Player, amount: Int)
+}
+
+pub type PlayerPayout {
+  PlayerPayout(paying: List(PayoutEntry), received: Int)
+}
+
+// --- Payout Calculation ---
+
+/// Calculate payouts for all players based on scores and winner
+/// Each player pays their own score to every other player
+/// Winner only receives, never pays
+pub fn calculate_payouts(
+  scores: #(Int, Int, Int, Int),
+  statuses: #(HandStatus, HandStatus, HandStatus, HandStatus),
+  winner: Player,
+  _east: Player,
+) -> #(PlayerPayout, PlayerPayout, PlayerPayout, PlayerPayout) {
+  let players = [Player1, Player2, Player3, Player4]
+
+  let p1_payout =
+    calculate_player_payout(Player1, scores, statuses, winner, players)
+  let p2_payout =
+    calculate_player_payout(Player2, scores, statuses, winner, players)
+  let p3_payout =
+    calculate_player_payout(Player3, scores, statuses, winner, players)
+  let p4_payout =
+    calculate_player_payout(Player4, scores, statuses, winner, players)
+
+  #(p1_payout, p2_payout, p3_payout, p4_payout)
+}
+
+fn calculate_player_payout(
+  player: Player,
+  scores: #(Int, Int, Int, Int),
+  statuses: #(HandStatus, HandStatus, HandStatus, HandStatus),
+  winner: Player,
+  all_players: List(Player),
+) -> PlayerPayout {
+  let my_score = get_score(scores, player)
+  let my_status = get_status(statuses, player)
+  let is_winner = player == winner
+
+  // Winner pays nothing
+  let paying = case is_winner {
+    True -> []
+    False -> {
+      // Pay my score to all other players
+      list.filter_map(all_players, fn(other) {
+        case other == player {
+          True -> Error(Nil)
+          False -> {
+            let amount = case my_status {
+              Dirty -> 0
+              Clean | Limit -> my_score
+            }
+            Ok(PayoutEntry(to: other, amount: amount))
+          }
+        }
+      })
+    }
+  }
+
+  // Calculate received: sum of what others pay me
+  let received = case is_winner {
+    True -> {
+      // Winner receives from all non-winners
+      list.fold(all_players, 0, fn(acc, other) {
+        case other == player {
+          True -> acc
+          False -> {
+            let other_score = get_score(scores, other)
+            let other_status = get_status(statuses, other)
+            let amount = case other_status {
+              Dirty -> 0
+              Clean | Limit -> other_score
+            }
+            acc + amount
+          }
+        }
+      })
+    }
+    False -> {
+      // Non-winner receives from other non-winners only
+      list.fold(all_players, 0, fn(acc, other) {
+        case other == player || other == winner {
+          True -> acc
+          False -> {
+            let other_score = get_score(scores, other)
+            let other_status = get_status(statuses, other)
+            let amount = case other_status {
+              Dirty -> 0
+              Clean | Limit -> other_score
+            }
+            acc + amount
+          }
+        }
+      })
+    }
+  }
+
+  PlayerPayout(paying: paying, received: received)
+}
+
+fn get_score(scores: #(Int, Int, Int, Int), player: Player) -> Int {
+  case player {
+    Player1 -> scores.0
+    Player2 -> scores.1
+    Player3 -> scores.2
+    Player4 -> scores.3
+  }
+}
+
+fn get_status(
+  statuses: #(HandStatus, HandStatus, HandStatus, HandStatus),
+  player: Player,
+) -> HandStatus {
+  case player {
+    Player1 -> statuses.0
+    Player2 -> statuses.1
+    Player3 -> statuses.2
+    Player4 -> statuses.3
+  }
+}
