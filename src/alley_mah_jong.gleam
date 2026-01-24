@@ -1010,6 +1010,8 @@ fn styles() -> String {
     --btn-dark: #e8e4d9;
     --btn-darker: #ddd8c9;
     --ink-purple: #4a235a;
+    --row-label-width: 75px;
+    --row-gap: 4px;
   }
   body {
     background: var(--cream);
@@ -1203,14 +1205,14 @@ fn styles() -> String {
   }
   .add-row {
     display: flex;
-    gap: 4px;
+    gap: var(--row-gap);
     align-items: center;
     flex-wrap: wrap;
   }
   .row-label {
     font-size: 10px;
     color: var(--carbon-light);
-    width: 62px;
+    width: var(--row-label-width);
     flex-shrink: 0;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -1314,7 +1316,7 @@ fn styles() -> String {
   /* Hand status selector */
   .hand-status-row {
     display: flex;
-    gap: 4px;
+    gap: var(--row-gap);
     align-items: center;
     margin-bottom: 8px;
     padding-bottom: 8px;
@@ -1347,6 +1349,12 @@ fn styles() -> String {
     display: flex;
     flex-direction: column;
     gap: 6px;
+  }
+  .doubles-section .add-row {
+    padding-left: calc(var(--row-label-width) + var(--row-gap));
+  }
+  .doubles-section .row-label {
+    margin-left: calc(-1 * var(--row-label-width) - var(--row-gap));
   }
   .double-checkbox {
     padding: 3px 6px;
