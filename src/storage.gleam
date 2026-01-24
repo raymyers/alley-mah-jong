@@ -47,6 +47,34 @@ pub type PlayerHand {
   PlayerHand(items: List(ScoringItem))
 }
 
+pub type DoublesContext {
+  DoublesContext(
+    is_clean: Bool,
+    has_dragon_pung_or_kong: Bool,
+    has_own_wind_pung_or_kong: Bool,
+    has_prevailing_wind_pung_or_kong: Bool,
+    has_both_own_flowers: Bool,
+    is_east_wind: Bool,
+    has_all_red_flowers: Bool,
+    has_all_blue_flowers: Bool,
+    is_clean_no_winds_or_dragons: Bool,
+  )
+}
+
+pub fn no_doubles() -> DoublesContext {
+  DoublesContext(
+    is_clean: False,
+    has_dragon_pung_or_kong: False,
+    has_own_wind_pung_or_kong: False,
+    has_prevailing_wind_pung_or_kong: False,
+    has_both_own_flowers: False,
+    is_east_wind: False,
+    has_all_red_flowers: False,
+    has_all_blue_flowers: False,
+    is_clean_no_winds_or_dragons: False,
+  )
+}
+
 pub type GameState {
   GameState(
     east_wind: Player,
@@ -54,6 +82,7 @@ pub type GameState {
     winner: Option(Player),
     hands: #(PlayerHand, PlayerHand, PlayerHand, PlayerHand),
     names: #(String, String, String, String),
+    doubles: #(DoublesContext, DoublesContext, DoublesContext, DoublesContext),
   )
 }
 
@@ -70,6 +99,7 @@ fn encode_state_json(state: GameState) -> Json {
     #("winner", encode_option_player(state.winner)),
     #("hands", encode_hands(state.hands)),
     #("names", encode_names(state.names)),
+    #("doubles", encode_doubles_list(state.doubles)),
   ])
 }
 
@@ -128,6 +158,32 @@ fn encode_names(names: #(String, String, String, String)) -> Json {
   json.array([names.0, names.1, names.2, names.3], json.string)
 }
 
+fn encode_doubles_list(
+  doubles: #(DoublesContext, DoublesContext, DoublesContext, DoublesContext),
+) -> Json {
+  json.array([doubles.0, doubles.1, doubles.2, doubles.3], encode_doubles)
+}
+
+fn encode_doubles(ctx: DoublesContext) -> Json {
+  json.object([
+    #("is_clean", json.bool(ctx.is_clean)),
+    #("has_dragon_pung_or_kong", json.bool(ctx.has_dragon_pung_or_kong)),
+    #("has_own_wind_pung_or_kong", json.bool(ctx.has_own_wind_pung_or_kong)),
+    #(
+      "has_prevailing_wind_pung_or_kong",
+      json.bool(ctx.has_prevailing_wind_pung_or_kong),
+    ),
+    #("has_both_own_flowers", json.bool(ctx.has_both_own_flowers)),
+    #("is_east_wind", json.bool(ctx.is_east_wind)),
+    #("has_all_red_flowers", json.bool(ctx.has_all_red_flowers)),
+    #("has_all_blue_flowers", json.bool(ctx.has_all_blue_flowers)),
+    #(
+      "is_clean_no_winds_or_dragons",
+      json.bool(ctx.is_clean_no_winds_or_dragons),
+    ),
+  ])
+}
+
 // --- JSON Decoding ---
 
 pub fn decode_state(json_string: String) -> Result(GameState, json.DecodeError) {
@@ -140,12 +196,21 @@ fn state_decoder() -> decode.Decoder(GameState) {
   use winner <- decode.field("winner", decode.optional(player_decoder()))
   use hands <- decode.field("hands", hands_decoder())
   use names <- decode.field("names", names_decoder())
+  use doubles_opt <- decode.field(
+    "doubles",
+    decode.optional(doubles_list_decoder()),
+  )
+  let doubles = case doubles_opt {
+    Some(d) -> d
+    None -> #(no_doubles(), no_doubles(), no_doubles(), no_doubles())
+  }
   decode.success(GameState(
     east_wind: east_wind,
     prevailing_wind: prevailing_wind,
     winner: winner,
     hands: hands,
     names: names,
+    doubles: doubles,
   ))
 }
 
@@ -214,6 +279,55 @@ fn names_decoder() -> decode.Decoder(#(String, String, String, String)) {
     [n1, n2, n3, n4] -> decode.success(#(n1, n2, n3, n4))
     _ -> decode.failure(#("", "", "", ""), "4 names")
   }
+}
+
+fn doubles_list_decoder() -> decode.Decoder(
+  #(DoublesContext, DoublesContext, DoublesContext, DoublesContext),
+) {
+  use doubles <- decode.then(decode.list(doubles_decoder()))
+  case doubles {
+    [d1, d2, d3, d4] -> decode.success(#(d1, d2, d3, d4))
+    _ ->
+      decode.failure(
+        #(no_doubles(), no_doubles(), no_doubles(), no_doubles()),
+        "4 doubles contexts",
+      )
+  }
+}
+
+fn doubles_decoder() -> decode.Decoder(DoublesContext) {
+  use is_clean <- decode.field("is_clean", decode.bool)
+  use has_dragon_pung_or_kong <- decode.field(
+    "has_dragon_pung_or_kong",
+    decode.bool,
+  )
+  use has_own_wind_pung_or_kong <- decode.field(
+    "has_own_wind_pung_or_kong",
+    decode.bool,
+  )
+  use has_prevailing_wind_pung_or_kong <- decode.field(
+    "has_prevailing_wind_pung_or_kong",
+    decode.bool,
+  )
+  use has_both_own_flowers <- decode.field("has_both_own_flowers", decode.bool)
+  use is_east_wind <- decode.field("is_east_wind", decode.bool)
+  use has_all_red_flowers <- decode.field("has_all_red_flowers", decode.bool)
+  use has_all_blue_flowers <- decode.field("has_all_blue_flowers", decode.bool)
+  use is_clean_no_winds_or_dragons <- decode.field(
+    "is_clean_no_winds_or_dragons",
+    decode.bool,
+  )
+  decode.success(DoublesContext(
+    is_clean: is_clean,
+    has_dragon_pung_or_kong: has_dragon_pung_or_kong,
+    has_own_wind_pung_or_kong: has_own_wind_pung_or_kong,
+    has_prevailing_wind_pung_or_kong: has_prevailing_wind_pung_or_kong,
+    has_both_own_flowers: has_both_own_flowers,
+    is_east_wind: is_east_wind,
+    has_all_red_flowers: has_all_red_flowers,
+    has_all_blue_flowers: has_all_blue_flowers,
+    is_clean_no_winds_or_dragons: is_clean_no_winds_or_dragons,
+  ))
 }
 
 // --- Storage Key ---
