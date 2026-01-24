@@ -1,4 +1,4 @@
-import alley_mah_jong.{
+import engine.{
   BonusFlower, BonusPairDragon, BonusPairWind, Kong, KongHidden, KongHonors,
   KongHonorsHidden, PlayerHand, Pung, PungHidden, PungHonors, PungHonorsHidden,
   calculate_hand_points, item_points,

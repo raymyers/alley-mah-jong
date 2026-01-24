@@ -1,3 +1,9 @@
+import engine.{
+  type Player, type PlayerHand, type ScoringItem, type Wind, BonusFlower,
+  BonusPairDragon, BonusPairWind, East, Kong, KongHidden, KongHonors,
+  KongHonorsHidden, North, Player1, Player2, Player3, Player4, PlayerHand, Pung,
+  PungHidden, PungHonors, PungHonorsHidden, South, West,
+}
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -8,92 +14,7 @@ import lustre/element/html.{button, div, h1, h3, option, select, span}
 import lustre/event
 import storage
 
-// --- Scoring Items ---
-
-pub type ScoringItem {
-  // Pungs (3 of a kind)
-  Pung
-  // 2-8 revealed: 2 pts
-  PungHonors
-  // 1,9,W,D revealed: 4 pts
-  PungHidden
-  // 2-8 hidden: 4 pts
-  PungHonorsHidden
-  // 1,9,W,D hidden: 8 pts
-  // Kongs (4 of a kind)
-  Kong
-  // 2-8 revealed: 8 pts
-  KongHonors
-  // 1,9,W,D revealed: 16 pts
-  KongHidden
-  // 2-8 hidden: 16 pts
-  KongHonorsHidden
-  // 1,9,W,D hidden: 32 pts
-  // Bonuses
-  BonusPairWind
-  // Pair of own/prevailing wind
-  BonusPairDragon
-  // Pair of dragon
-  BonusFlower
-  // Flower: 4 pts
-}
-
-pub fn item_points(item: ScoringItem) -> Int {
-  case item {
-    Pung -> 2
-    PungHonors -> 4
-    PungHidden -> 4
-    PungHonorsHidden -> 8
-    Kong -> 8
-    KongHonors -> 16
-    KongHidden -> 16
-    KongHonorsHidden -> 32
-    BonusPairWind -> 2
-    BonusPairDragon -> 2
-    BonusFlower -> 4
-  }
-}
-
-fn item_label(item: ScoringItem) -> String {
-  case item {
-    Pung | PungHidden -> "Pung 2-8"
-    PungHonors | PungHonorsHidden -> "Pung Honors"
-    Kong | KongHidden -> "Kong 2-8"
-    KongHonors | KongHonorsHidden -> "Kong Honors"
-    BonusPairWind -> "Wind Pair"
-    BonusPairDragon -> "Dragon Pair"
-    BonusFlower -> "Flower"
-  }
-}
-
-fn item_display(item: ScoringItem) -> String {
-  let pts = item_points(item)
-  let label = item_label(item)
-  case pts {
-    0 -> label
-    n -> label <> " (" <> int.to_string(n) <> ")"
-  }
-}
-
-// --- Model ---
-
-pub type Wind {
-  North
-  South
-  East
-  West
-}
-
-pub type Player {
-  Player1
-  Player2
-  Player3
-  Player4
-}
-
-pub type PlayerHand {
-  PlayerHand(items: List(ScoringItem))
-}
+// --- UI Model ---
 
 pub type Page {
   MainPage
@@ -111,17 +32,18 @@ pub type Model {
   )
 }
 
-fn empty_hand() -> PlayerHand {
-  PlayerHand(items: [])
-}
-
 fn default_model() -> Model {
   Model(
     page: MainPage,
     east_wind: Player1,
     prevailing_wind: East,
     winner: None,
-    hands: #(empty_hand(), empty_hand(), empty_hand(), empty_hand()),
+    hands: #(
+      engine.empty_hand(),
+      engine.empty_hand(),
+      engine.empty_hand(),
+      engine.empty_hand(),
+    ),
     names: #("", "", "", ""),
   )
 }
@@ -275,10 +197,10 @@ fn update(model: Model, msg: Msg) -> Model {
         RemoveItem(player, index) -> remove_item_from_hand(model, player, index)
         NewRound ->
           Model(..model, winner: None, hands: #(
-            empty_hand(),
-            empty_hand(),
-            empty_hand(),
-            empty_hand(),
+            engine.empty_hand(),
+            engine.empty_hand(),
+            engine.empty_hand(),
+            engine.empty_hand(),
           ))
       }
       save_model(new_model)
@@ -300,89 +222,61 @@ fn set_player_name(model: Model, player: Player, name: String) -> Model {
 fn add_item_to_hand(model: Model, player: Player, item: ScoringItem) -> Model {
   let hands = case player {
     Player1 -> #(
-      add_to_hand(model.hands.0, item),
+      engine.add_to_hand(model.hands.0, item),
       model.hands.1,
       model.hands.2,
       model.hands.3,
     )
     Player2 -> #(
       model.hands.0,
-      add_to_hand(model.hands.1, item),
+      engine.add_to_hand(model.hands.1, item),
       model.hands.2,
       model.hands.3,
     )
     Player3 -> #(
       model.hands.0,
       model.hands.1,
-      add_to_hand(model.hands.2, item),
+      engine.add_to_hand(model.hands.2, item),
       model.hands.3,
     )
     Player4 -> #(
       model.hands.0,
       model.hands.1,
       model.hands.2,
-      add_to_hand(model.hands.3, item),
+      engine.add_to_hand(model.hands.3, item),
     )
   }
   Model(..model, hands: hands)
-}
-
-fn add_to_hand(hand: PlayerHand, item: ScoringItem) -> PlayerHand {
-  PlayerHand(items: list.append(hand.items, [item]))
 }
 
 fn remove_item_from_hand(model: Model, player: Player, index: Int) -> Model {
   let hands = case player {
     Player1 -> #(
-      remove_from_hand(model.hands.0, index),
+      engine.remove_from_hand(model.hands.0, index),
       model.hands.1,
       model.hands.2,
       model.hands.3,
     )
     Player2 -> #(
       model.hands.0,
-      remove_from_hand(model.hands.1, index),
+      engine.remove_from_hand(model.hands.1, index),
       model.hands.2,
       model.hands.3,
     )
     Player3 -> #(
       model.hands.0,
       model.hands.1,
-      remove_from_hand(model.hands.2, index),
+      engine.remove_from_hand(model.hands.2, index),
       model.hands.3,
     )
     Player4 -> #(
       model.hands.0,
       model.hands.1,
       model.hands.2,
-      remove_from_hand(model.hands.3, index),
+      engine.remove_from_hand(model.hands.3, index),
     )
   }
   Model(..model, hands: hands)
-}
-
-fn remove_from_hand(hand: PlayerHand, index: Int) -> PlayerHand {
-  PlayerHand(items: remove_at(hand.items, index))
-}
-
-fn remove_at(items: List(a), index: Int) -> List(a) {
-  list.index_fold(items, [], fn(acc, item, i) {
-    case i == index {
-      True -> acc
-      False -> list.append(acc, [item])
-    }
-  })
-}
-
-// --- Scoring ---
-
-pub fn calculate_hand_points(hand: PlayerHand, is_winner: Bool) -> Int {
-  let base =
-    list.fold(hand.items, 0, fn(total, item) { total + item_points(item) })
-  case is_winner {
-    True -> base + 20
-    False -> base
-  }
 }
 
 // --- View ---
@@ -550,7 +444,7 @@ fn name_input(player: Player, current_name: String) -> Element(Msg) {
   html.input([
     class("name-input"),
     attribute.value(current_name),
-    attribute.placeholder(player_to_string(player)),
+    attribute.placeholder(engine.player_to_string(player)),
     event.on_input(fn(val) { SetPlayerName(player, val) }),
   ])
 }
@@ -563,7 +457,7 @@ fn player_option(
   let display_name = get_player_name(player, names)
   option(
     [
-      attribute.value(player_to_string(player)),
+      attribute.value(engine.player_to_string(player)),
       attribute.selected(player == selected),
     ],
     display_name,
@@ -587,7 +481,7 @@ fn winner_option(
 ) -> Element(Msg) {
   let #(label, value) = case winner {
     None -> #("None", "None")
-    Some(p) -> #(get_player_name(p, names), player_to_string(p))
+    Some(p) -> #(get_player_name(p, names), engine.player_to_string(p))
   }
   option(
     [attribute.value(value), attribute.selected(winner == selected)],
@@ -648,7 +542,7 @@ fn view_player_hand(
     True -> "player-hand winner"
     False -> "player-hand"
   }
-  let points = calculate_hand_points(hand, is_winner)
+  let points = engine.calculate_hand_points(hand, is_winner)
   div([class(hand_class)], [
     div([class("hand-header")], [
       h3([], [
@@ -687,27 +581,18 @@ fn view_player_hand(
 
 fn item_button(player: Player, item: ScoringItem) -> Element(Msg) {
   button([class("scoring-item add"), event.on_click(AddItem(player, item))], [
-    text(item_label(item)),
+    text(engine.item_label(item)),
   ])
 }
 
 fn removable_item(player: Player, item: ScoringItem, index: Int) -> Element(Msg) {
   button(
     [class("scoring-item in-hand"), event.on_click(RemoveItem(player, index))],
-    [text(item_display(item))],
+    [text(engine.item_display(item))],
   )
 }
 
 // --- Helpers ---
-
-fn player_to_string(player: Player) -> String {
-  case player {
-    Player1 -> "Player 1"
-    Player2 -> "Player 2"
-    Player3 -> "Player 3"
-    Player4 -> "Player 4"
-  }
-}
 
 fn get_player_name(
   player: Player,
@@ -720,7 +605,7 @@ fn get_player_name(
     Player4 -> names.3
   }
   case name {
-    "" -> player_to_string(player)
+    "" -> engine.player_to_string(player)
     _ -> name
   }
 }
