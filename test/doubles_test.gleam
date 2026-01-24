@@ -1,5 +1,6 @@
 import engine.{
-  DoublesContext, calculate_doubles, calculate_multiplier, no_doubles,
+  DoublesContext, calculate_doubles, calculate_multiplier, calculate_round_score,
+  max_round_score, no_doubles,
 }
 import gleeunit
 
@@ -155,4 +156,35 @@ pub fn clean_no_winds_dragons_implies_clean_test() {
     )
   assert calculate_doubles(ctx) == 4
   assert calculate_multiplier(ctx) == 16
+}
+
+// --- Round Score with Max Cap ---
+
+pub fn max_round_score_is_1000_test() {
+  assert max_round_score == 1000
+}
+
+pub fn round_score_under_max_not_capped_test() {
+  // 100 pts * 4x = 400, under max
+  assert calculate_round_score(100, 4) == 400
+}
+
+pub fn round_score_at_max_not_capped_test() {
+  // 500 pts * 2x = 1000, exactly at max
+  assert calculate_round_score(500, 2) == 1000
+}
+
+pub fn round_score_over_max_capped_test() {
+  // 200 pts * 8x = 1600, capped to 1000
+  assert calculate_round_score(200, 8) == 1000
+}
+
+pub fn round_score_high_multiplier_capped_test() {
+  // 50 pts * 128x = 6400, capped to 1000
+  assert calculate_round_score(50, 128) == 1000
+}
+
+pub fn round_score_no_multiplier_test() {
+  // 500 pts * 1x = 500
+  assert calculate_round_score(500, 1) == 500
 }

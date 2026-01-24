@@ -129,12 +129,23 @@ fn remove_at(items: List(a), index: Int) -> List(a) {
 
 pub const mahjong_bonus = 20
 
+pub const max_round_score = 1000
+
 pub fn calculate_hand_points(hand: PlayerHand, is_winner: Bool) -> Int {
   let base =
     list.fold(hand.items, 0, fn(total, item) { total + item_points(item) })
   case is_winner {
     True -> base + mahjong_bonus
     False -> base
+  }
+}
+
+/// Calculate final round score: base points * multiplier, capped at max_round_score
+pub fn calculate_round_score(base_points: Int, multiplier: Int) -> Int {
+  let score = base_points * multiplier
+  case score > max_round_score {
+    True -> max_round_score
+    False -> score
   }
 }
 

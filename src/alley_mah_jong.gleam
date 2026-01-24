@@ -708,7 +708,7 @@ fn view_player_hand(
   let effective_doubles = DoublesContext(..doubles_ctx, is_east_wind: is_east)
   let base_points = engine.calculate_hand_points(hand, is_winner)
   let multiplier = engine.calculate_multiplier(effective_doubles)
-  let total_points = base_points * multiplier
+  let total_points = engine.calculate_round_score(base_points, multiplier)
   let doubles_count = engine.calculate_doubles(effective_doubles)
   div([class(hand_class)], [
     div([class("hand-header")], [
