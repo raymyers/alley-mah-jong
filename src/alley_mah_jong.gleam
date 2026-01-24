@@ -1215,29 +1215,33 @@ fn styles() -> String {
     border-top: 1px dotted var(--carbon-faded);
   }
   .double-checkbox {
-    padding: 2px 6px;
-    font-size: 9px;
+    padding: 3px 6px;
+    font-size: 10px;
     font-family: 'Courier New', Courier, monospace;
     border: 1px solid var(--carbon-faded);
-    background: var(--cream);
+    background: var(--btn-dark);
     cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    box-shadow: 1px 1px 0 rgba(44,44,44,0.1);
+    white-space: nowrap;
   }
   .double-checkbox:hover {
-    background: var(--btn-dark);
+    background: var(--btn-darker);
     border-color: var(--carbon);
+    box-shadow:
+      1px 1px 0 rgba(44,44,44,0.15),
+      2px 2px 4px rgba(44,44,44,0.08);
   }
   .double-checkbox.checked {
     background: var(--ink-purple);
     color: var(--paper);
     border-color: var(--ink-purple);
+    font-weight: bold;
   }
   .double-auto {
-    font-size: 9px;
+    font-size: 10px;
     color: var(--carbon-light);
     font-style: italic;
-    padding: 2px 6px;
+    padding: 3px 6px;
   }
   "
 }
