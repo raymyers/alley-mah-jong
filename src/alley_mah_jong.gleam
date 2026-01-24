@@ -776,7 +776,7 @@ fn view_doubles_section(
     ]),
     div([class("add-row")], [
       span([class("row-label")], []),
-      double_checkbox(player, ctx, HasBothOwnFlowers, "Both Flowers"),
+      double_checkbox(player, ctx, HasBothOwnFlowers, "Both Your Flowers"),
       case is_east {
         True -> span([class("double-auto")], [text("East Wind (auto)")])
         False -> text("")
