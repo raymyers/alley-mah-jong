@@ -1,6 +1,13 @@
 # Alley Mah-Jong Scoring Spec
 
-## Input
+## Game
+
+A game is a series of rounds. Each of 4 players start with a score. Starting which score defaults to 3550 but for UI can be edited when game begins.
+
+The Game screen displays a summary of each round (and running scores) and allows you to go back into any round screen.
+
+## Round
+### Input
 
 Who is east wind
 Who is the prevailing wind
@@ -55,7 +62,7 @@ hk
 hkh
 ```
 
-## Output
+### Output
 
 Score - who pays who what?
 

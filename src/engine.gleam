@@ -377,3 +377,71 @@ fn get_score(scores: #(Int, Int, Int, Int), player: Player) -> Int {
     Player4 -> scores.3
   }
 }
+
+// --- Game Logic ---
+
+/// Calculate net payout (received - total paid)
+pub fn net_payout(payout: PlayerPayout) -> Int {
+  let total_paid =
+    list.fold(payout.paying, 0, fn(acc, entry) { acc + entry.amount })
+  payout.received - total_paid
+}
+
+/// Calculate running scores after a series of rounds
+/// Takes starting score and list of net payouts per round
+pub fn calculate_running_scores(
+  starting: Int,
+  round_nets: List(#(Int, Int, Int, Int)),
+) -> #(Int, Int, Int, Int) {
+  list.fold(
+    round_nets,
+    #(starting, starting, starting, starting),
+    fn(running, nets) {
+      #(
+        running.0 + nets.0,
+        running.1 + nets.1,
+        running.2 + nets.2,
+        running.3 + nets.3,
+      )
+    },
+  )
+}
+
+/// Determine next East wind based on whether current East won
+pub fn next_east_wind(current_east: Player, winner: Player) -> Player {
+  case current_east == winner {
+    True -> current_east
+    False -> rotate_player(current_east)
+  }
+}
+
+fn rotate_player(player: Player) -> Player {
+  case player {
+    Player1 -> Player2
+    Player2 -> Player3
+    Player3 -> Player4
+    Player4 -> Player1
+  }
+}
+
+/// Determine next prevailing wind
+/// Advances when East rotates from Player4 to Player1
+pub fn next_prevailing_wind(
+  current: Wind,
+  old_east: Player,
+  new_east: Player,
+) -> Wind {
+  case old_east == Player4 && new_east == Player1 {
+    True -> rotate_wind(current)
+    False -> current
+  }
+}
+
+fn rotate_wind(wind: Wind) -> Wind {
+  case wind {
+    East -> South
+    South -> West
+    West -> North
+    North -> East
+  }
+}

@@ -11,15 +11,17 @@ import gleam/option.{type Option, None, Some}
 import lustre
 import lustre/attribute.{class}
 import lustre/element.{type Element, text}
-import lustre/element/html.{button, div, h1, h3, option, select, span}
+import lustre/element/html.{button, div, h1, h2, h3, option, select, span}
 import lustre/event
-import storage
+import storage.{type Game, type Round}
 
 // --- UI Model ---
 
 pub type Page {
-  MainPage
+  GamePage
+  RoundPage(index: Int)
   RulesPage
+  NewGamePage
 }
 
 pub type HandStatus {
@@ -31,102 +33,420 @@ pub type HandStatus {
 pub type Model {
   Model(
     page: Page,
-    east_wind: Player,
-    prevailing_wind: Wind,
-    winner: Option(Player),
-    hands: #(PlayerHand, PlayerHand, PlayerHand, PlayerHand),
-    names: #(String, String, String, String),
-    doubles: #(DoublesContext, DoublesContext, DoublesContext, DoublesContext),
-    hand_statuses: #(HandStatus, HandStatus, HandStatus, HandStatus),
+    game: Option(Game),
+    // New game setup fields
+    setup_starting_score: String,
+    setup_names: #(String, String, String, String),
+    // Edit confirmation
+    pending_edit: Option(Int),
   )
 }
 
 fn default_model() -> Model {
   Model(
-    page: MainPage,
-    east_wind: Player1,
-    prevailing_wind: East,
-    winner: None,
-    hands: #(
-      engine.empty_hand(),
-      engine.empty_hand(),
-      engine.empty_hand(),
-      engine.empty_hand(),
-    ),
-    names: #("", "", "", ""),
-    doubles: #(
-      engine.no_doubles(),
-      engine.no_doubles(),
-      engine.no_doubles(),
-      engine.no_doubles(),
-    ),
-    hand_statuses: #(Dirty, Dirty, Dirty, Dirty),
+    page: GamePage,
+    game: None,
+    setup_starting_score: int.to_string(storage.default_starting_score),
+    setup_names: #("", "", "", ""),
+    pending_edit: None,
   )
 }
 
 fn init(_flags) -> Model {
-  case storage.load_state() {
-    Some(state) -> model_from_state(state)
+  case storage.load_game() {
+    Some(game) -> Model(..default_model(), game: Some(game))
     None -> default_model()
   }
 }
 
-// --- State Conversion ---
+// --- Messages ---
 
-pub fn model_to_state(model: Model) -> storage.GameState {
-  storage.GameState(
-    east_wind: player_to_storage(model.east_wind),
-    prevailing_wind: wind_to_storage(model.prevailing_wind),
-    winner: option.map(model.winner, player_to_storage),
-    hands: #(
-      hand_to_storage(model.hands.0),
-      hand_to_storage(model.hands.1),
-      hand_to_storage(model.hands.2),
-      hand_to_storage(model.hands.3),
-    ),
-    names: model.names,
-    doubles: #(
-      doubles_to_storage(model.doubles.0),
-      doubles_to_storage(model.doubles.1),
-      doubles_to_storage(model.doubles.2),
-      doubles_to_storage(model.doubles.3),
-    ),
-    hand_statuses: #(
-      hand_status_to_storage(model.hand_statuses.0),
-      hand_status_to_storage(model.hand_statuses.1),
-      hand_status_to_storage(model.hand_statuses.2),
-      hand_status_to_storage(model.hand_statuses.3),
-    ),
-  )
+pub type Msg {
+  GoToPage(Page)
+  // New game setup
+  SetSetupStartingScore(String)
+  SetSetupName(Player, String)
+  StartNewGame
+  ConfirmNewGame
+  CancelNewGame
+  // Round editing
+  SetEastWind(Player)
+  SetPrevailingWind(Wind)
+  SetWinner(Option(Player))
+  AddItem(Player, ScoringItem)
+  RemoveItem(Player, Int)
+  ToggleDouble(Player, DoubleCondition)
+  SetHandStatus(Player, HandStatus)
+  // Game actions
+  AddNewRound
+  ConfirmEditRound(Int)
+  CancelEditRound
 }
 
-fn model_from_state(state: storage.GameState) -> Model {
-  Model(
-    page: MainPage,
-    east_wind: player_from_storage(state.east_wind),
-    prevailing_wind: wind_from_storage(state.prevailing_wind),
-    winner: option.map(state.winner, player_from_storage),
-    hands: #(
-      hand_from_storage(state.hands.0),
-      hand_from_storage(state.hands.1),
-      hand_from_storage(state.hands.2),
-      hand_from_storage(state.hands.3),
-    ),
-    names: state.names,
-    doubles: #(
-      doubles_from_storage(state.doubles.0),
-      doubles_from_storage(state.doubles.1),
-      doubles_from_storage(state.doubles.2),
-      doubles_from_storage(state.doubles.3),
-    ),
-    hand_statuses: #(
-      hand_status_from_storage(state.hand_statuses.0),
-      hand_status_from_storage(state.hand_statuses.1),
-      hand_status_from_storage(state.hand_statuses.2),
-      hand_status_from_storage(state.hand_statuses.3),
-    ),
-  )
+pub type DoubleCondition {
+  HasDragonPungOrKong
+  HasOwnWindPungOrKong
+  HasPrevailingWindPungOrKong
+  HasBothOwnFlowers
+  HasAllRedFlowers
+  HasAllBlueFlowers
+  IsCleanNoWindsOrDragons
 }
+
+// --- Update ---
+
+fn update(model: Model, msg: Msg) -> Model {
+  let new_model = case msg {
+    GoToPage(page) -> Model(..model, page: page)
+
+    // New game setup
+    SetSetupStartingScore(s) -> Model(..model, setup_starting_score: s)
+    SetSetupName(player, name) -> {
+      let names = case player {
+        Player1 -> #(
+          name,
+          model.setup_names.1,
+          model.setup_names.2,
+          model.setup_names.3,
+        )
+        Player2 -> #(
+          model.setup_names.0,
+          name,
+          model.setup_names.2,
+          model.setup_names.3,
+        )
+        Player3 -> #(
+          model.setup_names.0,
+          model.setup_names.1,
+          name,
+          model.setup_names.3,
+        )
+        Player4 -> #(
+          model.setup_names.0,
+          model.setup_names.1,
+          model.setup_names.2,
+          name,
+        )
+      }
+      Model(..model, setup_names: names)
+    }
+    StartNewGame -> Model(..model, page: NewGamePage)
+    ConfirmNewGame -> {
+      let starting = case int.parse(model.setup_starting_score) {
+        Ok(n) -> n
+        Error(_) -> storage.default_starting_score
+      }
+      let game = storage.new_game(starting, model.setup_names)
+      storage.save_game(game)
+      Model(..model, page: RoundPage(0), game: Some(game))
+    }
+    CancelNewGame -> Model(..model, page: GamePage)
+
+    // Round editing (only when viewing a round)
+    SetEastWind(player) ->
+      update_current_round(model, fn(r) {
+        storage.Round(..r, east_wind: player_to_storage(player))
+      })
+    SetPrevailingWind(wind) ->
+      update_current_round(model, fn(r) {
+        storage.Round(..r, prevailing_wind: wind_to_storage(wind))
+      })
+    SetWinner(winner) ->
+      update_current_round(model, fn(r) {
+        storage.Round(..r, winner: option.map(winner, player_to_storage))
+      })
+    AddItem(player, item) ->
+      update_current_round(model, fn(r) {
+        let hands = add_item_to_hands(r.hands, player, item)
+        storage.Round(..r, hands: hands)
+      })
+    RemoveItem(player, index) ->
+      update_current_round(model, fn(r) {
+        let hands = remove_item_from_hands(r.hands, player, index)
+        storage.Round(..r, hands: hands)
+      })
+    ToggleDouble(player, condition) ->
+      update_current_round(model, fn(r) {
+        let doubles = toggle_doubles(r.doubles, player, condition)
+        storage.Round(..r, doubles: doubles)
+      })
+    SetHandStatus(player, status) ->
+      update_current_round(model, fn(r) {
+        let statuses = set_status(r.hand_statuses, player, status)
+        storage.Round(..r, hand_statuses: statuses)
+      })
+
+    // Game actions
+    AddNewRound -> {
+      case model.game {
+        None -> model
+        Some(game) -> {
+          let last_round = list.last(game.rounds)
+          let #(next_east, next_prevailing) = case last_round {
+            Error(_) -> #(storage.Player1, storage.East)
+            Ok(r) -> {
+              let winner = option.unwrap(r.winner, r.east_wind)
+              let new_east =
+                engine.next_east_wind(
+                  player_from_storage(r.east_wind),
+                  player_from_storage(winner),
+                )
+              let new_prevailing =
+                engine.next_prevailing_wind(
+                  wind_from_storage(r.prevailing_wind),
+                  player_from_storage(r.east_wind),
+                  new_east,
+                )
+              #(player_to_storage(new_east), wind_to_storage(new_prevailing))
+            }
+          }
+          let new_round = storage.empty_round(next_east, next_prevailing)
+          let new_index = list.length(game.rounds)
+          let new_game =
+            storage.Game(
+              ..game,
+              rounds: list.append(game.rounds, [new_round]),
+              editing_round: Some(new_index),
+            )
+          storage.save_game(new_game)
+          Model(..model, game: Some(new_game), page: RoundPage(new_index))
+        }
+      }
+    }
+    ConfirmEditRound(index) -> {
+      Model(..model, page: RoundPage(index), pending_edit: None)
+    }
+    CancelEditRound -> {
+      Model(..model, pending_edit: None)
+    }
+  }
+  new_model
+}
+
+fn update_current_round(model: Model, f: fn(Round) -> Round) -> Model {
+  case model.page, model.game {
+    RoundPage(index), Some(game) -> {
+      case storage.get_round(game, index) {
+        None -> model
+        Some(round) -> {
+          let new_round = f(round)
+          let new_game = storage.update_round(game, index, new_round)
+          storage.save_game(new_game)
+          Model(..model, game: Some(new_game))
+        }
+      }
+    }
+    _, _ -> model
+  }
+}
+
+fn add_item_to_hands(
+  hands: #(
+    storage.PlayerHand,
+    storage.PlayerHand,
+    storage.PlayerHand,
+    storage.PlayerHand,
+  ),
+  player: Player,
+  item: ScoringItem,
+) -> #(
+  storage.PlayerHand,
+  storage.PlayerHand,
+  storage.PlayerHand,
+  storage.PlayerHand,
+) {
+  let storage_item = item_to_storage(item)
+  case player {
+    Player1 -> #(
+      storage.PlayerHand(list.append({ hands.0 }.items, [storage_item])),
+      hands.1,
+      hands.2,
+      hands.3,
+    )
+    Player2 -> #(
+      hands.0,
+      storage.PlayerHand(list.append({ hands.1 }.items, [storage_item])),
+      hands.2,
+      hands.3,
+    )
+    Player3 -> #(
+      hands.0,
+      hands.1,
+      storage.PlayerHand(list.append({ hands.2 }.items, [storage_item])),
+      hands.3,
+    )
+    Player4 -> #(
+      hands.0,
+      hands.1,
+      hands.2,
+      storage.PlayerHand(list.append({ hands.3 }.items, [storage_item])),
+    )
+  }
+}
+
+fn remove_item_from_hands(
+  hands: #(
+    storage.PlayerHand,
+    storage.PlayerHand,
+    storage.PlayerHand,
+    storage.PlayerHand,
+  ),
+  player: Player,
+  index: Int,
+) -> #(
+  storage.PlayerHand,
+  storage.PlayerHand,
+  storage.PlayerHand,
+  storage.PlayerHand,
+) {
+  case player {
+    Player1 -> #(
+      storage.PlayerHand(remove_at({ hands.0 }.items, index)),
+      hands.1,
+      hands.2,
+      hands.3,
+    )
+    Player2 -> #(
+      hands.0,
+      storage.PlayerHand(remove_at({ hands.1 }.items, index)),
+      hands.2,
+      hands.3,
+    )
+    Player3 -> #(
+      hands.0,
+      hands.1,
+      storage.PlayerHand(remove_at({ hands.2 }.items, index)),
+      hands.3,
+    )
+    Player4 -> #(
+      hands.0,
+      hands.1,
+      hands.2,
+      storage.PlayerHand(remove_at({ hands.3 }.items, index)),
+    )
+  }
+}
+
+fn remove_at(items: List(a), index: Int) -> List(a) {
+  list.index_fold(items, [], fn(acc, item, i) {
+    case i == index {
+      True -> acc
+      False -> list.append(acc, [item])
+    }
+  })
+}
+
+fn toggle_doubles(
+  doubles: #(
+    storage.DoublesContext,
+    storage.DoublesContext,
+    storage.DoublesContext,
+    storage.DoublesContext,
+  ),
+  player: Player,
+  condition: DoubleCondition,
+) -> #(
+  storage.DoublesContext,
+  storage.DoublesContext,
+  storage.DoublesContext,
+  storage.DoublesContext,
+) {
+  case player {
+    Player1 -> #(
+      toggle_condition_storage(doubles.0, condition),
+      doubles.1,
+      doubles.2,
+      doubles.3,
+    )
+    Player2 -> #(
+      doubles.0,
+      toggle_condition_storage(doubles.1, condition),
+      doubles.2,
+      doubles.3,
+    )
+    Player3 -> #(
+      doubles.0,
+      doubles.1,
+      toggle_condition_storage(doubles.2, condition),
+      doubles.3,
+    )
+    Player4 -> #(
+      doubles.0,
+      doubles.1,
+      doubles.2,
+      toggle_condition_storage(doubles.3, condition),
+    )
+  }
+}
+
+fn toggle_condition_storage(
+  ctx: storage.DoublesContext,
+  condition: DoubleCondition,
+) -> storage.DoublesContext {
+  case condition {
+    HasDragonPungOrKong ->
+      storage.DoublesContext(
+        ..ctx,
+        has_dragon_pung_or_kong: !ctx.has_dragon_pung_or_kong,
+      )
+    HasOwnWindPungOrKong ->
+      storage.DoublesContext(
+        ..ctx,
+        has_own_wind_pung_or_kong: !ctx.has_own_wind_pung_or_kong,
+      )
+    HasPrevailingWindPungOrKong ->
+      storage.DoublesContext(
+        ..ctx,
+        has_prevailing_wind_pung_or_kong: !ctx.has_prevailing_wind_pung_or_kong,
+      )
+    HasBothOwnFlowers ->
+      storage.DoublesContext(
+        ..ctx,
+        has_both_own_flowers: !ctx.has_both_own_flowers,
+      )
+    HasAllRedFlowers ->
+      storage.DoublesContext(
+        ..ctx,
+        has_all_red_flowers: !ctx.has_all_red_flowers,
+      )
+    HasAllBlueFlowers ->
+      storage.DoublesContext(
+        ..ctx,
+        has_all_blue_flowers: !ctx.has_all_blue_flowers,
+      )
+    IsCleanNoWindsOrDragons ->
+      storage.DoublesContext(
+        ..ctx,
+        is_clean_no_winds_or_dragons: !ctx.is_clean_no_winds_or_dragons,
+      )
+  }
+}
+
+fn set_status(
+  statuses: #(
+    storage.HandStatus,
+    storage.HandStatus,
+    storage.HandStatus,
+    storage.HandStatus,
+  ),
+  player: Player,
+  status: HandStatus,
+) -> #(
+  storage.HandStatus,
+  storage.HandStatus,
+  storage.HandStatus,
+  storage.HandStatus,
+) {
+  let s = hand_status_to_storage(status)
+  case player {
+    Player1 -> #(s, statuses.1, statuses.2, statuses.3)
+    Player2 -> #(statuses.0, s, statuses.2, statuses.3)
+    Player3 -> #(statuses.0, statuses.1, s, statuses.3)
+    Player4 -> #(statuses.0, statuses.1, statuses.2, s)
+  }
+}
+
+// --- Type Conversions ---
 
 fn player_to_storage(player: Player) -> storage.Player {
   case player {
@@ -164,14 +484,6 @@ fn wind_from_storage(wind: storage.Wind) -> Wind {
   }
 }
 
-fn hand_to_storage(hand: PlayerHand) -> storage.PlayerHand {
-  storage.PlayerHand(items: list.map(hand.items, item_to_storage))
-}
-
-fn hand_from_storage(hand: storage.PlayerHand) -> PlayerHand {
-  PlayerHand(items: list.map(hand.items, item_from_storage))
-}
-
 fn item_to_storage(item: ScoringItem) -> storage.ScoringItem {
   case item {
     Pung -> storage.Pung
@@ -204,18 +516,28 @@ fn item_from_storage(item: storage.ScoringItem) -> ScoringItem {
   }
 }
 
-fn doubles_to_storage(ctx: DoublesContext) -> storage.DoublesContext {
-  storage.DoublesContext(
-    is_clean: ctx.is_clean,
-    has_dragon_pung_or_kong: ctx.has_dragon_pung_or_kong,
-    has_own_wind_pung_or_kong: ctx.has_own_wind_pung_or_kong,
-    has_prevailing_wind_pung_or_kong: ctx.has_prevailing_wind_pung_or_kong,
-    has_both_own_flowers: ctx.has_both_own_flowers,
-    is_east_wind: ctx.is_east_wind,
-    has_all_red_flowers: ctx.has_all_red_flowers,
-    has_all_blue_flowers: ctx.has_all_blue_flowers,
-    is_clean_no_winds_or_dragons: ctx.is_clean_no_winds_or_dragons,
-  )
+fn hand_status_to_storage(status: HandStatus) -> storage.HandStatus {
+  case status {
+    Dirty -> storage.Dirty
+    Clean -> storage.Clean
+    Limit -> storage.Limit
+  }
+}
+
+fn hand_status_from_storage(status: storage.HandStatus) -> HandStatus {
+  case status {
+    storage.Dirty -> Dirty
+    storage.Clean -> Clean
+    storage.Limit -> Limit
+  }
+}
+
+fn hand_status_to_engine(status: HandStatus) -> engine.HandStatus {
+  case status {
+    Dirty -> engine.Dirty
+    Clean -> engine.Clean
+    Limit -> engine.Limit
+  }
 }
 
 fn doubles_from_storage(ctx: storage.DoublesContext) -> DoublesContext {
@@ -232,242 +554,14 @@ fn doubles_from_storage(ctx: storage.DoublesContext) -> DoublesContext {
   )
 }
 
-fn hand_status_to_storage(status: HandStatus) -> storage.HandStatus {
-  case status {
-    Dirty -> storage.Dirty
-    Clean -> storage.Clean
-    Limit -> storage.Limit
-  }
+fn hand_from_storage(hand: storage.PlayerHand) -> PlayerHand {
+  PlayerHand(items: list.map(hand.items, item_from_storage))
 }
 
-fn hand_status_to_engine(status: HandStatus) -> engine.HandStatus {
-  case status {
-    Dirty -> engine.Dirty
-    Clean -> engine.Clean
-    Limit -> engine.Limit
-  }
-}
-
-fn hand_status_from_storage(status: storage.HandStatus) -> HandStatus {
-  case status {
-    storage.Dirty -> Dirty
-    storage.Clean -> Clean
-    storage.Limit -> Limit
-  }
-}
-
-fn save_model(model: Model) -> Nil {
-  storage.save_state(model_to_state(model))
-}
-
-// --- Double Conditions (for UI toggling) ---
-
-pub type DoubleCondition {
-  HasDragonPungOrKong
-  HasOwnWindPungOrKong
-  HasPrevailingWindPungOrKong
-  HasBothOwnFlowers
-  HasAllRedFlowers
-  HasAllBlueFlowers
-  IsCleanNoWindsOrDragons
-}
-
-// --- Messages ---
-
-pub type Msg {
-  GoToPage(Page)
-  SetEastWind(Player)
-  SetPrevailingWind(Wind)
-  SetWinner(Option(Player))
-  SetPlayerName(Player, String)
-  AddItem(Player, ScoringItem)
-  RemoveItem(Player, Int)
-  ToggleDouble(Player, DoubleCondition)
-  SetHandStatus(Player, HandStatus)
-  NewRound
-}
-
-// --- Update ---
-
-fn update(model: Model, msg: Msg) -> Model {
-  case msg {
-    GoToPage(page) -> Model(..model, page: page)
-    _ -> {
-      let new_model = case msg {
-        GoToPage(_) -> model
-        SetEastWind(player) -> Model(..model, east_wind: player)
-        SetPrevailingWind(wind) -> Model(..model, prevailing_wind: wind)
-        SetWinner(winner) -> Model(..model, winner: winner)
-        SetPlayerName(player, name) -> set_player_name(model, player, name)
-        AddItem(player, item) -> add_item_to_hand(model, player, item)
-        RemoveItem(player, index) -> remove_item_from_hand(model, player, index)
-        ToggleDouble(player, condition) ->
-          toggle_double(model, player, condition)
-        SetHandStatus(player, status) -> set_hand_status(model, player, status)
-        NewRound ->
-          Model(
-            ..model,
-            winner: None,
-            hands: #(
-              engine.empty_hand(),
-              engine.empty_hand(),
-              engine.empty_hand(),
-              engine.empty_hand(),
-            ),
-            doubles: #(
-              engine.no_doubles(),
-              engine.no_doubles(),
-              engine.no_doubles(),
-              engine.no_doubles(),
-            ),
-            hand_statuses: #(Dirty, Dirty, Dirty, Dirty),
-          )
-      }
-      save_model(new_model)
-      new_model
-    }
-  }
-}
-
-fn set_player_name(model: Model, player: Player, name: String) -> Model {
-  let names = case player {
-    Player1 -> #(name, model.names.1, model.names.2, model.names.3)
-    Player2 -> #(model.names.0, name, model.names.2, model.names.3)
-    Player3 -> #(model.names.0, model.names.1, name, model.names.3)
-    Player4 -> #(model.names.0, model.names.1, model.names.2, name)
-  }
-  Model(..model, names: names)
-}
-
-fn add_item_to_hand(model: Model, player: Player, item: ScoringItem) -> Model {
-  let hands = case player {
-    Player1 -> #(
-      engine.add_to_hand(model.hands.0, item),
-      model.hands.1,
-      model.hands.2,
-      model.hands.3,
-    )
-    Player2 -> #(
-      model.hands.0,
-      engine.add_to_hand(model.hands.1, item),
-      model.hands.2,
-      model.hands.3,
-    )
-    Player3 -> #(
-      model.hands.0,
-      model.hands.1,
-      engine.add_to_hand(model.hands.2, item),
-      model.hands.3,
-    )
-    Player4 -> #(
-      model.hands.0,
-      model.hands.1,
-      model.hands.2,
-      engine.add_to_hand(model.hands.3, item),
-    )
-  }
-  Model(..model, hands: hands)
-}
-
-fn remove_item_from_hand(model: Model, player: Player, index: Int) -> Model {
-  let hands = case player {
-    Player1 -> #(
-      engine.remove_from_hand(model.hands.0, index),
-      model.hands.1,
-      model.hands.2,
-      model.hands.3,
-    )
-    Player2 -> #(
-      model.hands.0,
-      engine.remove_from_hand(model.hands.1, index),
-      model.hands.2,
-      model.hands.3,
-    )
-    Player3 -> #(
-      model.hands.0,
-      model.hands.1,
-      engine.remove_from_hand(model.hands.2, index),
-      model.hands.3,
-    )
-    Player4 -> #(
-      model.hands.0,
-      model.hands.1,
-      model.hands.2,
-      engine.remove_from_hand(model.hands.3, index),
-    )
-  }
-  Model(..model, hands: hands)
-}
-
-fn toggle_double(
-  model: Model,
-  player: Player,
+fn get_condition_value(
+  ctx: storage.DoublesContext,
   condition: DoubleCondition,
-) -> Model {
-  let doubles = case player {
-    Player1 -> #(
-      toggle_condition(model.doubles.0, condition),
-      model.doubles.1,
-      model.doubles.2,
-      model.doubles.3,
-    )
-    Player2 -> #(
-      model.doubles.0,
-      toggle_condition(model.doubles.1, condition),
-      model.doubles.2,
-      model.doubles.3,
-    )
-    Player3 -> #(
-      model.doubles.0,
-      model.doubles.1,
-      toggle_condition(model.doubles.2, condition),
-      model.doubles.3,
-    )
-    Player4 -> #(
-      model.doubles.0,
-      model.doubles.1,
-      model.doubles.2,
-      toggle_condition(model.doubles.3, condition),
-    )
-  }
-  Model(..model, doubles: doubles)
-}
-
-fn toggle_condition(
-  ctx: DoublesContext,
-  condition: DoubleCondition,
-) -> DoublesContext {
-  case condition {
-    HasDragonPungOrKong ->
-      DoublesContext(
-        ..ctx,
-        has_dragon_pung_or_kong: !ctx.has_dragon_pung_or_kong,
-      )
-    HasOwnWindPungOrKong ->
-      DoublesContext(
-        ..ctx,
-        has_own_wind_pung_or_kong: !ctx.has_own_wind_pung_or_kong,
-      )
-    HasPrevailingWindPungOrKong ->
-      DoublesContext(
-        ..ctx,
-        has_prevailing_wind_pung_or_kong: !ctx.has_prevailing_wind_pung_or_kong,
-      )
-    HasBothOwnFlowers ->
-      DoublesContext(..ctx, has_both_own_flowers: !ctx.has_both_own_flowers)
-    HasAllRedFlowers ->
-      DoublesContext(..ctx, has_all_red_flowers: !ctx.has_all_red_flowers)
-    HasAllBlueFlowers ->
-      DoublesContext(..ctx, has_all_blue_flowers: !ctx.has_all_blue_flowers)
-    IsCleanNoWindsOrDragons ->
-      DoublesContext(
-        ..ctx,
-        is_clean_no_winds_or_dragons: !ctx.is_clean_no_winds_or_dragons,
-      )
-  }
-}
-
-fn get_condition_value(ctx: DoublesContext, condition: DoubleCondition) -> Bool {
+) -> Bool {
   case condition {
     HasDragonPungOrKong -> ctx.has_dragon_pung_or_kong
     HasOwnWindPungOrKong -> ctx.has_own_wind_pung_or_kong
@@ -479,36 +573,6 @@ fn get_condition_value(ctx: DoublesContext, condition: DoubleCondition) -> Bool 
   }
 }
 
-fn set_hand_status(model: Model, player: Player, status: HandStatus) -> Model {
-  let statuses = case player {
-    Player1 -> #(
-      status,
-      model.hand_statuses.1,
-      model.hand_statuses.2,
-      model.hand_statuses.3,
-    )
-    Player2 -> #(
-      model.hand_statuses.0,
-      status,
-      model.hand_statuses.2,
-      model.hand_statuses.3,
-    )
-    Player3 -> #(
-      model.hand_statuses.0,
-      model.hand_statuses.1,
-      status,
-      model.hand_statuses.3,
-    )
-    Player4 -> #(
-      model.hand_statuses.0,
-      model.hand_statuses.1,
-      model.hand_statuses.2,
-      status,
-    )
-  }
-  Model(..model, hand_statuses: statuses)
-}
-
 // --- View ---
 
 fn view(model: Model) -> Element(Msg) {
@@ -516,8 +580,10 @@ fn view(model: Model) -> Element(Msg) {
     html.style([], styles()),
     view_header(model.page),
     case model.page {
-      MainPage -> view_main_page(model)
+      GamePage -> view_game_page(model)
+      RoundPage(index) -> view_round_page(model, index)
       RulesPage -> view_rules_page()
+      NewGamePage -> view_new_game_page(model)
     },
   ])
 }
@@ -527,112 +593,326 @@ fn view_header(current_page: Page) -> Element(Msg) {
     h1([], [text("Alley Mah-jong")]),
     html.nav([class("nav")], [
       case current_page {
-        MainPage ->
+        GamePage ->
           html.a([class("nav-link"), event.on_click(GoToPage(RulesPage))], [
             text("Rules"),
           ])
-        RulesPage ->
-          html.a([class("nav-link"), event.on_click(GoToPage(MainPage))], [
+        RoundPage(_) ->
+          html.a([class("nav-link"), event.on_click(GoToPage(GamePage))], [
             text("Back to Game"),
+          ])
+        RulesPage ->
+          html.a([class("nav-link"), event.on_click(GoToPage(GamePage))], [
+            text("Back to Game"),
+          ])
+        NewGamePage ->
+          html.a([class("nav-link"), event.on_click(CancelNewGame)], [
+            text("Cancel"),
           ])
       },
     ]),
   ])
 }
 
-fn view_main_page(model: Model) -> Element(Msg) {
-  div([], [view_round_settings(model), view_all_hands(model)])
+// --- Game Page ---
+
+fn view_game_page(model: Model) -> Element(Msg) {
+  case model.game {
+    None -> view_no_game()
+    Some(game) -> view_game_summary(game)
+  }
 }
 
-fn view_rules_page() -> Element(Msg) {
-  div([class("rules-page")], [
-    html.article([class("rules-content")], [
-      html.h2([], [text("Scoring Rules")]),
-      html.p([], [
-        text(
-          "This app calculates Mah-jong hand scores. Enter each player's melds and bonuses to see their points.",
-        ),
-      ]),
-      html.h3([], [text("Pungs (3 of a kind)")]),
-      html.table([class("rules-table")], [
-        html.thead([], [
-          html.tr([], [
-            html.th([], [text("Type")]),
-            html.th([], [text("Revealed")]),
-            html.th([], [text("Hidden")]),
-          ]),
-        ]),
-        html.tbody([], [
-          html.tr([], [
-            html.td([], [text("Simple (2-8)")]),
-            html.td([], [text("2 pts")]),
-            html.td([], [text("4 pts")]),
-          ]),
-          html.tr([], [
-            html.td([], [text("Honors (1, 9, Winds, Dragons)")]),
-            html.td([], [text("4 pts")]),
-            html.td([], [text("8 pts")]),
-          ]),
+fn view_no_game() -> Element(Msg) {
+  div([class("no-game")], [
+    h2([], [text("No Game in Progress")]),
+    button([class("new-game-btn"), event.on_click(StartNewGame)], [
+      text("New Game"),
+    ]),
+  ])
+}
+
+fn view_game_summary(game: Game) -> Element(Msg) {
+  let running_scores = calculate_all_running_scores(game)
+  let last_round = list.last(game.rounds)
+  let can_add_round = case last_round {
+    Error(_) -> True
+    Ok(r) -> option.is_some(r.winner)
+  }
+
+  div([class("game-summary")], [
+    div([class("game-header")], [
+      h2([], [text("Game Summary")]),
+      div([class("game-actions")], [
+        button([class("new-game-btn secondary"), event.on_click(StartNewGame)], [
+          text("New Game"),
         ]),
       ]),
-      html.h3([], [text("Kongs (4 of a kind)")]),
-      html.table([class("rules-table")], [
-        html.thead([], [
-          html.tr([], [
-            html.th([], [text("Type")]),
-            html.th([], [text("Revealed")]),
-            html.th([], [text("Hidden")]),
-          ]),
-        ]),
-        html.tbody([], [
-          html.tr([], [
-            html.td([], [text("Simple (2-8)")]),
-            html.td([], [text("8 pts")]),
-            html.td([], [text("16 pts")]),
-          ]),
-          html.tr([], [
-            html.td([], [text("Honors (1, 9, Winds, Dragons)")]),
-            html.td([], [text("16 pts")]),
-            html.td([], [text("32 pts")]),
-          ]),
+    ]),
+    view_current_standings(game, running_scores),
+    div(
+      [class("rounds-list")],
+      list.index_map(game.rounds, fn(round, index) {
+        let round_running = get_running_at(running_scores, index)
+        view_round_summary(game, round, index, round_running)
+      }),
+    ),
+    case can_add_round {
+      True ->
+        button([class("add-round-btn"), event.on_click(AddNewRound)], [
+          text("+ New Round"),
+        ])
+      False ->
+        div([class("round-incomplete-hint")], [
+          text("Select a winner to complete the current round"),
+        ])
+    },
+  ])
+}
+
+fn view_current_standings(
+  game: Game,
+  running_scores: List(#(Int, Int, Int, Int)),
+) -> Element(Msg) {
+  let current = case list.last(running_scores) {
+    Ok(scores) -> scores
+    Error(_) -> #(
+      game.starting_score,
+      game.starting_score,
+      game.starting_score,
+      game.starting_score,
+    )
+  }
+  div([class("standings")], [
+    view_standing(game.names.0, "Player 1", current.0),
+    view_standing(game.names.1, "Player 2", current.1),
+    view_standing(game.names.2, "Player 3", current.2),
+    view_standing(game.names.3, "Player 4", current.3),
+  ])
+}
+
+fn view_standing(name: String, default: String, score: Int) -> Element(Msg) {
+  let display_name = case name {
+    "" -> default
+    n -> n
+  }
+  div([class("standing")], [
+    span([class("standing-name")], [text(display_name)]),
+    span([class("standing-score")], [text(int.to_string(score))]),
+  ])
+}
+
+fn view_round_summary(
+  game: Game,
+  round: Round,
+  index: Int,
+  running: #(Int, Int, Int, Int),
+) -> Element(Msg) {
+  let round_num = index + 1
+  let winner_name = case round.winner {
+    None -> "In Progress"
+    Some(p) -> get_player_display_name(p, game.names) <> " won"
+  }
+  let east = player_from_storage(round.east_wind)
+
+  div([class("round-summary"), event.on_click(GoToPage(RoundPage(index)))], [
+    div([class("round-header")], [
+      span([class("round-number")], [text("Round " <> int.to_string(round_num))]),
+      span([class("round-winner")], [text(winner_name)]),
+    ]),
+    case round.winner {
+      None -> text("")
+      Some(_) -> view_round_details(game, round, east, running)
+    },
+  ])
+}
+
+fn view_round_details(
+  game: Game,
+  round: Round,
+  east: Player,
+  running: #(Int, Int, Int, Int),
+) -> Element(Msg) {
+  let scores = calculate_round_scores(round)
+  let statuses = #(
+    hand_status_to_engine(hand_status_from_storage(round.hand_statuses.0)),
+    hand_status_to_engine(hand_status_from_storage(round.hand_statuses.1)),
+    hand_status_to_engine(hand_status_from_storage(round.hand_statuses.2)),
+    hand_status_to_engine(hand_status_from_storage(round.hand_statuses.3)),
+  )
+  let winner =
+    option.unwrap(option.map(round.winner, player_from_storage), Player1)
+  let payouts = engine.calculate_payouts(scores, statuses, winner, east)
+
+  div([class("round-details")], [
+    view_player_row(
+      game.names.0,
+      "Player 1",
+      Player1,
+      east,
+      winner,
+      scores.0,
+      payouts.0,
+      running.0,
+    ),
+    view_player_row(
+      game.names.1,
+      "Player 2",
+      Player2,
+      east,
+      winner,
+      scores.1,
+      payouts.1,
+      running.1,
+    ),
+    view_player_row(
+      game.names.2,
+      "Player 3",
+      Player3,
+      east,
+      winner,
+      scores.2,
+      payouts.2,
+      running.2,
+    ),
+    view_player_row(
+      game.names.3,
+      "Player 4",
+      Player4,
+      east,
+      winner,
+      scores.3,
+      payouts.3,
+      running.3,
+    ),
+  ])
+}
+
+fn view_player_row(
+  name: String,
+  default: String,
+  player: Player,
+  east: Player,
+  winner: Player,
+  score: Int,
+  payout: PlayerPayout,
+  running: Int,
+) -> Element(Msg) {
+  let display_name = case name {
+    "" -> default
+    n -> n
+  }
+  let markers = {
+    let east_mark = case player == east {
+      True -> " (E)"
+      False -> ""
+    }
+    let win_mark = case player == winner {
+      True -> " ★"
+      False -> ""
+    }
+    east_mark <> win_mark
+  }
+  let net = engine.net_payout(payout)
+  let net_str = case net >= 0 {
+    True -> "+" <> int.to_string(net)
+    False -> int.to_string(net)
+  }
+
+  div([class("player-row")], [
+    span([class("player-name")], [text(display_name <> markers)]),
+    span([class("player-score")], [text(int.to_string(score))]),
+    span([class("player-net")], [text(net_str)]),
+    span([class("player-running")], [text(int.to_string(running))]),
+  ])
+}
+
+// --- New Game Page ---
+
+fn view_new_game_page(model: Model) -> Element(Msg) {
+  div([class("new-game-page")], [
+    h2([], [text("New Game")]),
+    div([class("setup-form")], [
+      div([class("setup-field")], [
+        html.label([], [text("Starting Score:")]),
+        html.input([
+          class("setup-input"),
+          attribute.type_("number"),
+          attribute.value(model.setup_starting_score),
+          event.on_input(SetSetupStartingScore),
         ]),
       ]),
-      html.h3([], [text("Bonuses")]),
-      html.ul([], [
-        html.li([], [text("Pair of Winds: 2 pts")]),
-        html.li([], [text("Pair of Dragons: 2 pts")]),
-        html.li([], [text("Flower: 4 pts")]),
-        html.li([], [text("Mah-jonging: 20 pts")]),
+      div([class("setup-section")], [
+        html.label([], [text("Player Names:")]),
+        setup_name_input(Player1, model.setup_names.0),
+        setup_name_input(Player2, model.setup_names.1),
+        setup_name_input(Player3, model.setup_names.2),
+        setup_name_input(Player4, model.setup_names.3),
       ]),
-      html.h3([], [text("Terminology")]),
-      html.ul([], [
-        html.li([], [
-          html.strong([], [text("Revealed: ")]),
-          text("Melds formed by claiming a discarded tile (face-up on table)"),
+      div([class("setup-actions")], [
+        button([class("new-game-btn"), event.on_click(ConfirmNewGame)], [
+          text("Start Game"),
         ]),
-        html.li([], [
-          html.strong([], [text("Hidden: ")]),
-          text("Melds formed entirely from drawn tiles (kept concealed)"),
-        ]),
-        html.li([], [
-          html.strong([], [text("Honors: ")]),
-          text("Terminal tiles (1 and 9), Wind tiles, and Dragon tiles"),
+        button([class("cancel-btn"), event.on_click(CancelNewGame)], [
+          text("Cancel"),
         ]),
       ]),
     ]),
   ])
 }
 
-fn view_round_settings(model: Model) -> Element(Msg) {
+fn setup_name_input(player: Player, current_name: String) -> Element(Msg) {
+  html.input([
+    class("name-input"),
+    attribute.value(current_name),
+    attribute.placeholder(engine.player_to_string(player)),
+    event.on_input(fn(val) { SetSetupName(player, val) }),
+  ])
+}
+
+// --- Round Page ---
+
+fn view_round_page(model: Model, index: Int) -> Element(Msg) {
+  case model.game {
+    None -> div([], [text("No game")])
+    Some(game) -> {
+      case storage.get_round(game, index) {
+        None -> div([], [text("Round not found")])
+        Some(round) -> view_round_editor(game, round, index)
+      }
+    }
+  }
+}
+
+fn view_round_editor(game: Game, round: Round, index: Int) -> Element(Msg) {
+  let east = player_from_storage(round.east_wind)
+  let prevailing = wind_from_storage(round.prevailing_wind)
+  let winner = option.map(round.winner, player_from_storage)
+
+  div([], [
+    div([class("round-title")], [
+      h2([], [text("Round " <> int.to_string(index + 1))]),
+    ]),
+    view_round_settings(game, east, prevailing, winner),
+    view_all_hands(game, round, east, winner),
+  ])
+}
+
+fn view_round_settings(
+  game: Game,
+  east: Player,
+  prevailing: Wind,
+  winner: Option(Player),
+) -> Element(Msg) {
   div([class("settings-container")], [
     div([class("round-settings")], [
       div([class("setting")], [
         html.label([], [text("East Wind: ")]),
         select([event.on_input(fn(val) { SetEastWind(parse_player(val)) })], [
-          player_option(Player1, model.east_wind, model.names),
-          player_option(Player2, model.east_wind, model.names),
-          player_option(Player3, model.east_wind, model.names),
-          player_option(Player4, model.east_wind, model.names),
+          player_option(Player1, east, game.names),
+          player_option(Player2, east, game.names),
+          player_option(Player3, east, game.names),
+          player_option(Player4, east, game.names),
         ]),
       ]),
       div([class("setting")], [
@@ -640,42 +920,24 @@ fn view_round_settings(model: Model) -> Element(Msg) {
         select(
           [event.on_input(fn(val) { SetPrevailingWind(parse_wind(val)) })],
           [
-            wind_option(East, model.prevailing_wind),
-            wind_option(South, model.prevailing_wind),
-            wind_option(West, model.prevailing_wind),
-            wind_option(North, model.prevailing_wind),
+            wind_option(East, prevailing),
+            wind_option(South, prevailing),
+            wind_option(West, prevailing),
+            wind_option(North, prevailing),
           ],
         ),
       ]),
       div([class("setting")], [
         html.label([], [text("Mah-jong'd: ")]),
         select([event.on_input(fn(val) { SetWinner(parse_winner(val)) })], [
-          winner_option(None, model.winner, model.names),
-          winner_option(Some(Player1), model.winner, model.names),
-          winner_option(Some(Player2), model.winner, model.names),
-          winner_option(Some(Player3), model.winner, model.names),
-          winner_option(Some(Player4), model.winner, model.names),
+          winner_option(None, winner, game.names),
+          winner_option(Some(Player1), winner, game.names),
+          winner_option(Some(Player2), winner, game.names),
+          winner_option(Some(Player3), winner, game.names),
+          winner_option(Some(Player4), winner, game.names),
         ]),
       ]),
-      button([class("new-round-btn"), event.on_click(NewRound)], [
-        text("New Round"),
-      ]),
     ]),
-    div([class("name-settings")], [
-      name_input(Player1, model.names.0),
-      name_input(Player2, model.names.1),
-      name_input(Player3, model.names.2),
-      name_input(Player4, model.names.3),
-    ]),
-  ])
-}
-
-fn name_input(player: Player, current_name: String) -> Element(Msg) {
-  html.input([
-    class("name-input"),
-    attribute.value(current_name),
-    attribute.placeholder(engine.player_to_string(player)),
-    event.on_input(fn(val) { SetPlayerName(player, val) }),
   ])
 }
 
@@ -719,106 +981,74 @@ fn winner_option(
   )
 }
 
-fn view_all_hands(model: Model) -> Element(Msg) {
-  // Calculate scores for all players
-  let scores = calculate_all_scores(model)
-
-  // Calculate payouts (only meaningful when there's a winner)
-  let engine_statuses = #(
-    hand_status_to_engine(model.hand_statuses.0),
-    hand_status_to_engine(model.hand_statuses.1),
-    hand_status_to_engine(model.hand_statuses.2),
-    hand_status_to_engine(model.hand_statuses.3),
+fn view_all_hands(
+  game: Game,
+  round: Round,
+  east: Player,
+  winner: Option(Player),
+) -> Element(Msg) {
+  // Calculate scores and payouts for display
+  let scores = calculate_round_scores(round)
+  let statuses = #(
+    hand_status_to_engine(hand_status_from_storage(round.hand_statuses.0)),
+    hand_status_to_engine(hand_status_from_storage(round.hand_statuses.1)),
+    hand_status_to_engine(hand_status_from_storage(round.hand_statuses.2)),
+    hand_status_to_engine(hand_status_from_storage(round.hand_statuses.3)),
   )
-  let payouts = case model.winner {
-    Some(winner) ->
-      Some(engine.calculate_payouts(
-        scores,
-        engine_statuses,
-        winner,
-        model.east_wind,
-      ))
+  let payouts = case winner {
+    Some(w) -> Some(engine.calculate_payouts(scores, statuses, w, east))
     None -> None
   }
 
   div([class("all-hands")], [
     view_player_hand(
       Player1,
-      model.hands.0,
-      model.doubles.0,
-      model.hand_statuses.0,
-      model.east_wind,
-      model.winner,
-      model.names,
+      round.hands.0,
+      round.doubles.0,
+      round.hand_statuses.0,
+      east,
+      winner,
+      game.names,
       option.map(payouts, fn(p) { p.0 }),
     ),
     view_player_hand(
       Player2,
-      model.hands.1,
-      model.doubles.1,
-      model.hand_statuses.1,
-      model.east_wind,
-      model.winner,
-      model.names,
+      round.hands.1,
+      round.doubles.1,
+      round.hand_statuses.1,
+      east,
+      winner,
+      game.names,
       option.map(payouts, fn(p) { p.1 }),
     ),
     view_player_hand(
       Player3,
-      model.hands.2,
-      model.doubles.2,
-      model.hand_statuses.2,
-      model.east_wind,
-      model.winner,
-      model.names,
+      round.hands.2,
+      round.doubles.2,
+      round.hand_statuses.2,
+      east,
+      winner,
+      game.names,
       option.map(payouts, fn(p) { p.2 }),
     ),
     view_player_hand(
       Player4,
-      model.hands.3,
-      model.doubles.3,
-      model.hand_statuses.3,
-      model.east_wind,
-      model.winner,
-      model.names,
+      round.hands.3,
+      round.doubles.3,
+      round.hand_statuses.3,
+      east,
+      winner,
+      game.names,
       option.map(payouts, fn(p) { p.3 }),
     ),
   ])
 }
 
-fn calculate_all_scores(model: Model) -> #(Int, Int, Int, Int) {
-  let score1 = calculate_player_score(model, Player1)
-  let score2 = calculate_player_score(model, Player2)
-  let score3 = calculate_player_score(model, Player3)
-  let score4 = calculate_player_score(model, Player4)
-  #(score1, score2, score3, score4)
-}
-
-fn calculate_player_score(model: Model, player: Player) -> Int {
-  let #(hand, doubles_ctx, hand_status) = case player {
-    Player1 -> #(model.hands.0, model.doubles.0, model.hand_statuses.0)
-    Player2 -> #(model.hands.1, model.doubles.1, model.hand_statuses.1)
-    Player3 -> #(model.hands.2, model.doubles.2, model.hand_statuses.2)
-    Player4 -> #(model.hands.3, model.doubles.3, model.hand_statuses.3)
-  }
-  let is_winner = model.winner == Some(player)
-  let is_east = player == model.east_wind
-  let engine_status = hand_status_to_engine(hand_status)
-  let #(total_points, _, _) =
-    engine.calculate_final_score(
-      hand,
-      engine_status,
-      doubles_ctx,
-      is_winner,
-      is_east,
-    )
-  total_points
-}
-
 fn view_player_hand(
   player: Player,
-  hand: PlayerHand,
-  doubles_ctx: DoublesContext,
-  hand_status: HandStatus,
+  hand: storage.PlayerHand,
+  doubles_ctx: storage.DoublesContext,
+  hand_status: storage.HandStatus,
   east: Player,
   winner: Option(Player),
   names: #(String, String, String, String),
@@ -838,13 +1068,15 @@ fn view_player_hand(
     True -> "player-hand winner"
     False -> "player-hand"
   }
-  // Calculate score using engine
-  let engine_status = hand_status_to_engine(hand_status)
+  let ui_hand_status = hand_status_from_storage(hand_status)
+  let engine_status = hand_status_to_engine(ui_hand_status)
+  let engine_doubles = doubles_from_storage(doubles_ctx)
+  let engine_hand = hand_from_storage(hand)
   let #(total_points, multiplier, doubles_count) =
     engine.calculate_final_score(
-      hand,
+      engine_hand,
       engine_status,
-      doubles_ctx,
+      engine_doubles,
       is_winner,
       is_east,
     )
@@ -864,14 +1096,14 @@ fn view_player_hand(
         },
       ]),
     ]),
-    view_hand_status_selector(player, hand_status),
-    case hand_status {
+    view_hand_status_selector(player, ui_hand_status),
+    case ui_hand_status {
       Clean ->
         div([], [
           div(
             [class("hand-items")],
             list.index_map(hand.items, fn(item, i) {
-              removable_item(player, item, i)
+              removable_item(player, item_from_storage(item), i)
             }),
           ),
           div([class("add-section")], [
@@ -904,42 +1136,6 @@ fn view_player_hand(
   ])
 }
 
-fn view_payout_section(
-  payout: Option(PlayerPayout),
-  is_winner: Bool,
-  names: #(String, String, String, String),
-) -> Element(Msg) {
-  case payout {
-    None -> text("")
-    Some(p) ->
-      div([class("payout-section")], [
-        case is_winner {
-          True -> text("")
-          False ->
-            div([class("payout-row")], [
-              span([class("payout-label")], [text("Paying:")]),
-              div(
-                [class("payout-entries")],
-                list.map(p.paying, fn(entry) {
-                  span([class("payout-entry")], [
-                    text(
-                      get_player_name(entry.to, names)
-                      <> ": "
-                      <> int.to_string(entry.amount),
-                    ),
-                  ])
-                }),
-              ),
-            ])
-        },
-        div([class("payout-row")], [
-          span([class("payout-label")], [text("Received:")]),
-          span([class("payout-amount")], [text(int.to_string(p.received))]),
-        ]),
-      ])
-  }
-}
-
 fn view_hand_status_selector(player: Player, status: HandStatus) -> Element(Msg) {
   div([class("hand-status-row")], [
     span([class("row-label")], [text("Status:")]),
@@ -966,7 +1162,7 @@ fn status_button(
 
 fn view_doubles_section(
   player: Player,
-  ctx: DoublesContext,
+  ctx: storage.DoublesContext,
   is_east: Bool,
 ) -> Element(Msg) {
   div([class("doubles-section")], [
@@ -1005,7 +1201,7 @@ fn view_doubles_section(
 
 fn double_checkbox(
   player: Player,
-  ctx: DoublesContext,
+  ctx: storage.DoublesContext,
   condition: DoubleCondition,
   label: String,
 ) -> Element(Msg) {
@@ -1033,6 +1229,108 @@ fn removable_item(player: Player, item: ScoringItem, index: Int) -> Element(Msg)
   )
 }
 
+fn view_payout_section(
+  payout: Option(PlayerPayout),
+  is_winner: Bool,
+  names: #(String, String, String, String),
+) -> Element(Msg) {
+  case payout {
+    None -> text("")
+    Some(p) ->
+      div([class("payout-section")], [
+        case is_winner {
+          True -> text("")
+          False ->
+            div([class("payout-row")], [
+              span([class("payout-label")], [text("Paying:")]),
+              div(
+                [class("payout-entries")],
+                list.map(p.paying, fn(entry) {
+                  span([class("payout-entry")], [
+                    text(
+                      get_player_name(entry.to, names)
+                      <> ": "
+                      <> int.to_string(entry.amount),
+                    ),
+                  ])
+                }),
+              ),
+            ])
+        },
+        div([class("payout-row")], [
+          span([class("payout-label")], [text("Received:")]),
+          span([class("payout-amount")], [text(int.to_string(p.received))]),
+        ]),
+      ])
+  }
+}
+
+// --- Rules Page ---
+
+fn view_rules_page() -> Element(Msg) {
+  div([class("rules-page")], [
+    html.article([class("rules-content")], [
+      h2([], [text("Scoring Rules")]),
+      html.p([], [
+        text(
+          "This app calculates Mah-jong hand scores. Enter each player's melds and bonuses to see their points.",
+        ),
+      ]),
+      h3([], [text("Pungs (3 of a kind)")]),
+      html.table([class("rules-table")], [
+        html.thead([], [
+          html.tr([], [
+            html.th([], [text("Type")]),
+            html.th([], [text("Revealed")]),
+            html.th([], [text("Hidden")]),
+          ]),
+        ]),
+        html.tbody([], [
+          html.tr([], [
+            html.td([], [text("Simple (2-8)")]),
+            html.td([], [text("2 pts")]),
+            html.td([], [text("4 pts")]),
+          ]),
+          html.tr([], [
+            html.td([], [text("Honors (1, 9, Winds, Dragons)")]),
+            html.td([], [text("4 pts")]),
+            html.td([], [text("8 pts")]),
+          ]),
+        ]),
+      ]),
+      h3([], [text("Kongs (4 of a kind)")]),
+      html.table([class("rules-table")], [
+        html.thead([], [
+          html.tr([], [
+            html.th([], [text("Type")]),
+            html.th([], [text("Revealed")]),
+            html.th([], [text("Hidden")]),
+          ]),
+        ]),
+        html.tbody([], [
+          html.tr([], [
+            html.td([], [text("Simple (2-8)")]),
+            html.td([], [text("8 pts")]),
+            html.td([], [text("16 pts")]),
+          ]),
+          html.tr([], [
+            html.td([], [text("Honors (1, 9, Winds, Dragons)")]),
+            html.td([], [text("16 pts")]),
+            html.td([], [text("32 pts")]),
+          ]),
+        ]),
+      ]),
+      h3([], [text("Bonuses")]),
+      html.ul([], [
+        html.li([], [text("Pair of Winds: 2 pts")]),
+        html.li([], [text("Pair of Dragons: 2 pts")]),
+        html.li([], [text("Flower: 4 pts")]),
+        html.li([], [text("Mah-jonging: 20 pts")]),
+      ]),
+    ]),
+  ])
+}
+
 // --- Helpers ---
 
 fn get_player_name(
@@ -1049,6 +1347,13 @@ fn get_player_name(
     "" -> engine.player_to_string(player)
     _ -> name
   }
+}
+
+fn get_player_display_name(
+  player: storage.Player,
+  names: #(String, String, String, String),
+) -> String {
+  get_player_name(player_from_storage(player), names)
 }
 
 fn parse_player(s: String) -> Player {
@@ -1090,6 +1395,104 @@ fn parse_winner(s: String) -> Option(Player) {
   }
 }
 
+// --- Score Calculation Helpers ---
+
+fn calculate_round_scores(round: Round) -> #(Int, Int, Int, Int) {
+  let winner = option.map(round.winner, player_from_storage)
+  let east = player_from_storage(round.east_wind)
+
+  let calc = fn(hand, doubles, status, player) {
+    let is_winner = winner == Some(player)
+    let is_east = player == east
+    let engine_hand = hand_from_storage(hand)
+    let engine_doubles = doubles_from_storage(doubles)
+    let engine_status = hand_status_to_engine(hand_status_from_storage(status))
+    let #(score, _, _) =
+      engine.calculate_final_score(
+        engine_hand,
+        engine_status,
+        engine_doubles,
+        is_winner,
+        is_east,
+      )
+    score
+  }
+
+  #(
+    calc(round.hands.0, round.doubles.0, round.hand_statuses.0, Player1),
+    calc(round.hands.1, round.doubles.1, round.hand_statuses.1, Player2),
+    calc(round.hands.2, round.doubles.2, round.hand_statuses.2, Player3),
+    calc(round.hands.3, round.doubles.3, round.hand_statuses.3, Player4),
+  )
+}
+
+fn calculate_all_running_scores(game: Game) -> List(#(Int, Int, Int, Int)) {
+  list.fold(game.rounds, [], fn(acc, round) {
+    let prev = case list.last(acc) {
+      Ok(scores) -> scores
+      Error(_) -> #(
+        game.starting_score,
+        game.starting_score,
+        game.starting_score,
+        game.starting_score,
+      )
+    }
+    case round.winner {
+      None -> acc
+      // Skip incomplete rounds
+      Some(_) -> {
+        let scores = calculate_round_scores(round)
+        let east = player_from_storage(round.east_wind)
+        let winner =
+          option.unwrap(option.map(round.winner, player_from_storage), Player1)
+        let statuses = #(
+          hand_status_to_engine(hand_status_from_storage(round.hand_statuses.0)),
+          hand_status_to_engine(hand_status_from_storage(round.hand_statuses.1)),
+          hand_status_to_engine(hand_status_from_storage(round.hand_statuses.2)),
+          hand_status_to_engine(hand_status_from_storage(round.hand_statuses.3)),
+        )
+        let payouts = engine.calculate_payouts(scores, statuses, winner, east)
+        let nets = #(
+          engine.net_payout(payouts.0),
+          engine.net_payout(payouts.1),
+          engine.net_payout(payouts.2),
+          engine.net_payout(payouts.3),
+        )
+        let new_running = #(
+          prev.0 + nets.0,
+          prev.1 + nets.1,
+          prev.2 + nets.2,
+          prev.3 + nets.3,
+        )
+        list.append(acc, [new_running])
+      }
+    }
+  })
+}
+
+fn get_running_at(
+  running_scores: List(#(Int, Int, Int, Int)),
+  index: Int,
+) -> #(Int, Int, Int, Int) {
+  case get_at(running_scores, index) {
+    Some(scores) -> scores
+    None -> #(0, 0, 0, 0)
+  }
+}
+
+fn get_at(items: List(a), index: Int) -> Option(a) {
+  case items {
+    [] -> None
+    [first, ..rest] ->
+      case index {
+        0 -> Some(first)
+        _ -> get_at(rest, index - 1)
+      }
+  }
+}
+
+// --- Styles ---
+
 fn styles() -> String {
   "
   /* Vintage typewriter aesthetic */
@@ -1116,10 +1519,14 @@ fn styles() -> String {
     padding: 20px;
     color: var(--carbon);
   }
-  h1 {
+  h1, h2 {
     text-transform: uppercase;
     letter-spacing: 4px;
     margin: 0;
+  }
+  h2 {
+    letter-spacing: 2px;
+    font-size: 18px;
   }
   .header {
     display: flex;
@@ -1148,6 +1555,196 @@ fn styles() -> String {
     border-color: var(--ink-purple);
     background: var(--btn-dark);
   }
+  /* Game page */
+  .no-game {
+    text-align: center;
+    padding: 60px 20px;
+  }
+  .game-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .standings {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 16px;
+    background: var(--paper);
+    border: 2px solid var(--carbon-faded);
+  }
+  .standing {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 100px;
+  }
+  .standing-name {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--carbon-light);
+  }
+  .standing-score {
+    font-size: 24px;
+    font-weight: bold;
+  }
+  .rounds-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .round-summary {
+    background: var(--paper);
+    border: 1px solid var(--carbon-faded);
+    padding: 12px;
+    cursor: pointer;
+  }
+  .round-summary:hover {
+    border-color: var(--carbon);
+  }
+  .round-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .round-number {
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 12px;
+  }
+  .round-winner {
+    font-size: 12px;
+    color: var(--carbon-light);
+  }
+  .round-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+  }
+  .player-row {
+    display: grid;
+    grid-template-columns: 1fr 60px 60px 80px;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px dotted var(--carbon-faded);
+  }
+  .player-name { font-weight: bold; }
+  .player-score { text-align: right; }
+  .player-net { text-align: right; color: var(--ink-purple); }
+  .player-running { text-align: right; font-weight: bold; }
+  .add-round-btn {
+    padding: 12px 24px;
+    background: var(--ink-purple);
+    color: var(--paper);
+    border: none;
+    cursor: pointer;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  .add-round-btn:hover {
+    background: var(--carbon);
+  }
+  .round-incomplete-hint {
+    font-size: 12px;
+    color: var(--carbon-light);
+    font-style: italic;
+    padding: 12px;
+  }
+  .new-game-btn {
+    padding: 12px 24px;
+    background: var(--ink-purple);
+    color: var(--paper);
+    border: none;
+    cursor: pointer;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  .new-game-btn:hover {
+    background: var(--carbon);
+  }
+  .new-game-btn.secondary {
+    background: var(--btn-dark);
+    color: var(--carbon);
+    border: 1px solid var(--carbon-faded);
+  }
+  .new-game-btn.secondary:hover {
+    background: var(--btn-darker);
+    border-color: var(--carbon);
+  }
+  /* New game page */
+  .new-game-page {
+    background: var(--paper);
+    border: 2px solid var(--carbon-faded);
+    padding: 24px;
+  }
+  .setup-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .setup-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .setup-field label {
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 11px;
+  }
+  .setup-input {
+    font-family: 'Courier New', Courier, monospace;
+    padding: 8px 12px;
+    border: 1px solid var(--carbon-faded);
+    font-size: 14px;
+    max-width: 200px;
+  }
+  .setup-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .setup-section label {
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 11px;
+  }
+  .setup-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .cancel-btn {
+    padding: 12px 24px;
+    background: var(--btn-dark);
+    color: var(--carbon);
+    border: 1px solid var(--carbon-faded);
+    cursor: pointer;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 12px;
+  }
+  .cancel-btn:hover {
+    background: var(--btn-darker);
+  }
+  /* Round page */
+  .round-title {
+    margin-bottom: 16px;
+  }
   .settings-container {
     margin-bottom: 24px;
     background: var(--paper);
@@ -1163,14 +1760,6 @@ fn styles() -> String {
     gap: 20px;
     flex-wrap: wrap;
     padding: 16px;
-    padding-bottom: 12px;
-  }
-  .name-settings {
-    display: flex;
-    gap: 12px;
-    padding: 12px 16px;
-    border-top: 1px dashed var(--carbon-faded);
-    flex-wrap: wrap;
   }
   .name-input {
     font-family: 'Courier New', Courier, monospace;
@@ -1204,25 +1793,6 @@ fn styles() -> String {
     border: 1px solid var(--carbon-faded);
     background: var(--btn-dark);
     font-size: 14px;
-  }
-  .new-round-btn {
-    padding: 8px 16px;
-    background: var(--btn-darker);
-    color: var(--ink-purple);
-    border: 2px solid var(--ink-purple);
-    cursor: pointer;
-    font-family: 'Courier New', Courier, monospace;
-    font-weight: bold;
-    text-transform: uppercase;
-    font-size: 11px;
-    letter-spacing: 1px;
-    box-shadow:
-      2px 2px 0 rgba(74,35,90,0.2),
-      3px 3px 6px rgba(44,44,44,0.1);
-  }
-  .new-round-btn:hover {
-    background: var(--ink-purple);
-    color: var(--paper);
   }
   .all-hands {
     display: grid;

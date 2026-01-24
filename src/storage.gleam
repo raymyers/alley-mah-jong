@@ -1,5 +1,6 @@
 import gleam/dynamic/decode
 import gleam/json.{type Json}
+import gleam/list
 import gleam/option.{type Option, None, Some}
 
 // --- FFI for localStorage ---
@@ -81,33 +82,76 @@ pub type HandStatus {
   Limit
 }
 
-pub type GameState {
-  GameState(
+// A single round of play
+pub type Round {
+  Round(
     east_wind: Player,
     prevailing_wind: Wind,
     winner: Option(Player),
     hands: #(PlayerHand, PlayerHand, PlayerHand, PlayerHand),
-    names: #(String, String, String, String),
     doubles: #(DoublesContext, DoublesContext, DoublesContext, DoublesContext),
     hand_statuses: #(HandStatus, HandStatus, HandStatus, HandStatus),
   )
 }
 
-// --- JSON Encoding ---
-
-pub fn encode_state(state: GameState) -> String {
-  json.to_string(encode_state_json(state))
+// A full game with multiple rounds
+pub type Game {
+  Game(
+    starting_score: Int,
+    names: #(String, String, String, String),
+    rounds: List(Round),
+    editing_round: Option(Int),
+  )
 }
 
-fn encode_state_json(state: GameState) -> Json {
+pub fn empty_round(east: Player, prevailing: Wind) -> Round {
+  Round(
+    east_wind: east,
+    prevailing_wind: prevailing,
+    winner: None,
+    hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
+    doubles: #(no_doubles(), no_doubles(), no_doubles(), no_doubles()),
+    hand_statuses: #(Dirty, Dirty, Dirty, Dirty),
+  )
+}
+
+pub fn new_game(
+  starting_score: Int,
+  names: #(String, String, String, String),
+) -> Game {
+  Game(
+    starting_score: starting_score,
+    names: names,
+    rounds: [empty_round(Player1, East)],
+    editing_round: Some(0),
+  )
+}
+
+pub const default_starting_score = 3550
+
+// --- JSON Encoding ---
+
+pub fn encode_game(game: Game) -> String {
+  json.to_string(encode_game_json(game))
+}
+
+fn encode_game_json(game: Game) -> Json {
   json.object([
-    #("east_wind", encode_player(state.east_wind)),
-    #("prevailing_wind", encode_wind(state.prevailing_wind)),
-    #("winner", encode_option_player(state.winner)),
-    #("hands", encode_hands(state.hands)),
-    #("names", encode_names(state.names)),
-    #("doubles", encode_doubles_list(state.doubles)),
-    #("hand_statuses", encode_hand_statuses(state.hand_statuses)),
+    #("starting_score", json.int(game.starting_score)),
+    #("names", encode_names(game.names)),
+    #("rounds", json.array(game.rounds, encode_round_json)),
+    #("editing_round", encode_option_int(game.editing_round)),
+  ])
+}
+
+fn encode_round_json(round: Round) -> Json {
+  json.object([
+    #("east_wind", encode_player(round.east_wind)),
+    #("prevailing_wind", encode_wind(round.prevailing_wind)),
+    #("winner", encode_option_player(round.winner)),
+    #("hands", encode_hands(round.hands)),
+    #("doubles", encode_doubles_list(round.doubles)),
+    #("hand_statuses", encode_hand_statuses(round.hand_statuses)),
   ])
 }
 
@@ -133,6 +177,13 @@ fn encode_option_player(opt: Option(Player)) -> Json {
   case opt {
     None -> json.null()
     Some(p) -> encode_player(p)
+  }
+}
+
+fn encode_option_int(opt: Option(Int)) -> Json {
+  case opt {
+    None -> json.null()
+    Some(i) -> json.int(i)
   }
 }
 
@@ -211,16 +262,31 @@ fn encode_doubles(ctx: DoublesContext) -> Json {
 
 // --- JSON Decoding ---
 
-pub fn decode_state(json_string: String) -> Result(GameState, json.DecodeError) {
-  json.parse(json_string, state_decoder())
+pub fn decode_game(json_string: String) -> Result(Game, json.DecodeError) {
+  json.parse(json_string, game_decoder())
 }
 
-fn state_decoder() -> decode.Decoder(GameState) {
+fn game_decoder() -> decode.Decoder(Game) {
+  use starting_score <- decode.field("starting_score", decode.int)
+  use names <- decode.field("names", names_decoder())
+  use rounds <- decode.field("rounds", decode.list(round_decoder()))
+  use editing_round <- decode.field(
+    "editing_round",
+    decode.optional(decode.int),
+  )
+  decode.success(Game(
+    starting_score: starting_score,
+    names: names,
+    rounds: rounds,
+    editing_round: editing_round,
+  ))
+}
+
+fn round_decoder() -> decode.Decoder(Round) {
   use east_wind <- decode.field("east_wind", player_decoder())
   use prevailing_wind <- decode.field("prevailing_wind", wind_decoder())
   use winner <- decode.field("winner", decode.optional(player_decoder()))
   use hands <- decode.field("hands", hands_decoder())
-  use names <- decode.field("names", names_decoder())
   use doubles_opt <- decode.field(
     "doubles",
     decode.optional(doubles_list_decoder()),
@@ -237,12 +303,11 @@ fn state_decoder() -> decode.Decoder(GameState) {
     Some(s) -> s
     None -> #(Dirty, Dirty, Dirty, Dirty)
   }
-  decode.success(GameState(
+  decode.success(Round(
     east_wind: east_wind,
     prevailing_wind: prevailing_wind,
     winner: winner,
     hands: hands,
-    names: names,
     doubles: doubles,
     hand_statuses: hand_statuses,
   ))
@@ -385,26 +450,55 @@ fn doubles_decoder() -> decode.Decoder(DoublesContext) {
 }
 
 // --- Storage Key ---
-
-const storage_key = "alley_mah_jong_state"
+// Changed key to avoid loading old incompatible data
+const storage_key = "alley_mah_jong_game"
 
 // --- Public API ---
 
-pub fn save_state(state: GameState) -> Nil {
-  set_item(storage_key, encode_state(state))
+pub fn save_game(game: Game) -> Nil {
+  set_item(storage_key, encode_game(game))
 }
 
-pub fn load_state() -> Option(GameState) {
+pub fn load_game() -> Option(Game) {
   case get_item(storage_key) {
     None -> None
     Some(json_str) ->
-      case decode_state(json_str) {
-        Ok(state) -> Some(state)
+      case decode_game(json_str) {
+        Ok(game) -> Some(game)
         Error(_) -> None
       }
   }
 }
 
-pub fn clear_state() -> Nil {
+pub fn clear_game() -> Nil {
   remove_item(storage_key)
+}
+
+// --- Round Helpers ---
+
+pub fn update_round(game: Game, index: Int, round: Round) -> Game {
+  Game(
+    ..game,
+    rounds: list.index_map(game.rounds, fn(r, i) {
+      case i == index {
+        True -> round
+        False -> r
+      }
+    }),
+  )
+}
+
+pub fn get_round(game: Game, index: Int) -> Option(Round) {
+  get_at(game.rounds, index)
+}
+
+fn get_at(items: List(a), index: Int) -> Option(a) {
+  case items {
+    [] -> None
+    [first, ..rest] ->
+      case index {
+        0 -> Some(first)
+        _ -> get_at(rest, index - 1)
+      }
+  }
 }

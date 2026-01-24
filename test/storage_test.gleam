@@ -1,9 +1,9 @@
 import gleam/option.{None, Some}
 import storage.{
-  BonusFlower, BonusPairDragon, BonusPairWind, Clean, Dirty, East, GameState,
-  Kong, KongHidden, KongHonors, KongHonorsHidden, Limit, North, Player1, Player2,
+  BonusFlower, BonusPairDragon, BonusPairWind, Clean, Dirty, East, Game, Kong,
+  KongHidden, KongHonors, KongHonorsHidden, Limit, North, Player1, Player2,
   Player3, Player4, PlayerHand, Pung, PungHidden, PungHonors, PungHonorsHidden,
-  South, West, decode_state, encode_state, no_doubles,
+  Round, South, West, decode_game, encode_game, no_doubles,
 }
 
 fn empty_doubles() {
@@ -14,27 +14,37 @@ fn default_statuses() {
   #(Dirty, Dirty, Dirty, Dirty)
 }
 
-// --- Encoding/Decoding Tests ---
+fn empty_hands() {
+  #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([]))
+}
 
-pub fn encode_decode_empty_state_test() {
-  let state =
-    GameState(
+// --- Game Encoding/Decoding Tests ---
+
+pub fn encode_decode_empty_game_test() {
+  let round =
+    Round(
       east_wind: Player1,
       prevailing_wind: East,
       winner: None,
-      hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
-      names: #("", "", "", ""),
+      hands: empty_hands(),
       doubles: empty_doubles(),
       hand_statuses: default_statuses(),
     )
-  let encoded = encode_state(state)
-  let decoded = decode_state(encoded)
-  assert decoded == Ok(state)
+  let game =
+    Game(
+      starting_score: 3550,
+      names: #("", "", "", ""),
+      rounds: [round],
+      editing_round: Some(0),
+    )
+  let encoded = encode_game(game)
+  let decoded = decode_game(encoded)
+  assert decoded == Ok(game)
 }
 
-pub fn encode_decode_full_state_test() {
-  let state =
-    GameState(
+pub fn encode_decode_full_game_test() {
+  let round =
+    Round(
       east_wind: Player3,
       prevailing_wind: South,
       winner: Some(Player2),
@@ -44,113 +54,112 @@ pub fn encode_decode_full_state_test() {
         PlayerHand([BonusFlower, BonusPairWind]),
         PlayerHand([PungHidden, KongHonorsHidden]),
       ),
-      names: #("Alice", "Bob", "Carol", "Dave"),
       doubles: empty_doubles(),
       hand_statuses: default_statuses(),
     )
-  let encoded = encode_state(state)
-  let decoded = decode_state(encoded)
-  assert decoded == Ok(state)
+  let game =
+    Game(
+      starting_score: 3550,
+      names: #("Alice", "Bob", "Carol", "Dave"),
+      rounds: [round],
+      editing_round: None,
+    )
+  let encoded = encode_game(game)
+  let decoded = decode_game(encoded)
+  assert decoded == Ok(game)
 }
 
 pub fn encode_decode_all_players_test() {
-  let state1 =
-    GameState(
+  let round1 =
+    Round(
       east_wind: Player1,
       prevailing_wind: East,
       winner: Some(Player1),
-      hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
-      names: #("", "", "", ""),
+      hands: empty_hands(),
       doubles: empty_doubles(),
       hand_statuses: default_statuses(),
     )
-  assert decode_state(encode_state(state1)) == Ok(state1)
+  let game1 =
+    Game(
+      starting_score: 3550,
+      names: #("", "", "", ""),
+      rounds: [round1],
+      editing_round: None,
+    )
+  assert decode_game(encode_game(game1)) == Ok(game1)
 
-  let state2 =
-    GameState(
+  let round2 =
+    Round(
       east_wind: Player2,
       prevailing_wind: East,
       winner: Some(Player2),
-      hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
-      names: #("", "", "", ""),
+      hands: empty_hands(),
       doubles: empty_doubles(),
       hand_statuses: default_statuses(),
     )
-  assert decode_state(encode_state(state2)) == Ok(state2)
+  let game2 = Game(..game1, rounds: [round2])
+  assert decode_game(encode_game(game2)) == Ok(game2)
 
-  let state3 =
-    GameState(
+  let round3 =
+    Round(
       east_wind: Player3,
       prevailing_wind: East,
       winner: Some(Player3),
-      hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
-      names: #("", "", "", ""),
+      hands: empty_hands(),
       doubles: empty_doubles(),
       hand_statuses: default_statuses(),
     )
-  assert decode_state(encode_state(state3)) == Ok(state3)
+  let game3 = Game(..game1, rounds: [round3])
+  assert decode_game(encode_game(game3)) == Ok(game3)
 
-  let state4 =
-    GameState(
+  let round4 =
+    Round(
       east_wind: Player4,
       prevailing_wind: East,
       winner: Some(Player4),
-      hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
-      names: #("", "", "", ""),
+      hands: empty_hands(),
       doubles: empty_doubles(),
       hand_statuses: default_statuses(),
     )
-  assert decode_state(encode_state(state4)) == Ok(state4)
+  let game4 = Game(..game1, rounds: [round4])
+  assert decode_game(encode_game(game4)) == Ok(game4)
 }
 
 pub fn encode_decode_all_winds_test() {
-  let state_east =
-    GameState(
+  let base_round =
+    Round(
       east_wind: Player1,
       prevailing_wind: East,
       winner: None,
-      hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
-      names: #("", "", "", ""),
+      hands: empty_hands(),
       doubles: empty_doubles(),
       hand_statuses: default_statuses(),
     )
-  assert decode_state(encode_state(state_east)) == Ok(state_east)
+  let base_game =
+    Game(
+      starting_score: 3550,
+      names: #("", "", "", ""),
+      rounds: [base_round],
+      editing_round: None,
+    )
 
-  let state_south =
-    GameState(
-      east_wind: Player1,
-      prevailing_wind: South,
-      winner: None,
-      hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
-      names: #("", "", "", ""),
-      doubles: empty_doubles(),
-      hand_statuses: default_statuses(),
-    )
-  assert decode_state(encode_state(state_south)) == Ok(state_south)
+  // Test East
+  assert decode_game(encode_game(base_game)) == Ok(base_game)
 
-  let state_west =
-    GameState(
-      east_wind: Player1,
-      prevailing_wind: West,
-      winner: None,
-      hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
-      names: #("", "", "", ""),
-      doubles: empty_doubles(),
-      hand_statuses: default_statuses(),
-    )
-  assert decode_state(encode_state(state_west)) == Ok(state_west)
+  // Test South
+  let round_south = Round(..base_round, prevailing_wind: South)
+  let game_south = Game(..base_game, rounds: [round_south])
+  assert decode_game(encode_game(game_south)) == Ok(game_south)
 
-  let state_north =
-    GameState(
-      east_wind: Player1,
-      prevailing_wind: North,
-      winner: None,
-      hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
-      names: #("", "", "", ""),
-      doubles: empty_doubles(),
-      hand_statuses: default_statuses(),
-    )
-  assert decode_state(encode_state(state_north)) == Ok(state_north)
+  // Test West
+  let round_west = Round(..base_round, prevailing_wind: West)
+  let game_west = Game(..base_game, rounds: [round_west])
+  assert decode_game(encode_game(game_west)) == Ok(game_west)
+
+  // Test North
+  let round_north = Round(..base_round, prevailing_wind: North)
+  let game_north = Game(..base_game, rounds: [round_north])
+  assert decode_game(encode_game(game_north)) == Ok(game_north)
 }
 
 pub fn encode_decode_all_scoring_items_test() {
@@ -167,8 +176,8 @@ pub fn encode_decode_all_scoring_items_test() {
     BonusPairDragon,
     BonusFlower,
   ]
-  let state =
-    GameState(
+  let round =
+    Round(
       east_wind: Player1,
       prevailing_wind: East,
       winner: None,
@@ -178,65 +187,79 @@ pub fn encode_decode_all_scoring_items_test() {
         PlayerHand([]),
         PlayerHand([]),
       ),
-      names: #("", "", "", ""),
       doubles: empty_doubles(),
       hand_statuses: default_statuses(),
     )
-  assert decode_state(encode_state(state)) == Ok(state)
+  let game =
+    Game(
+      starting_score: 3550,
+      names: #("", "", "", ""),
+      rounds: [round],
+      editing_round: None,
+    )
+  assert decode_game(encode_game(game)) == Ok(game)
 }
 
 pub fn encode_decode_no_winner_test() {
-  let state =
-    GameState(
+  let round =
+    Round(
       east_wind: Player1,
       prevailing_wind: East,
       winner: None,
-      hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
-      names: #("", "", "", ""),
+      hands: empty_hands(),
       doubles: empty_doubles(),
       hand_statuses: default_statuses(),
     )
-  assert decode_state(encode_state(state)) == Ok(state)
+  let game =
+    Game(
+      starting_score: 3550,
+      names: #("", "", "", ""),
+      rounds: [round],
+      editing_round: None,
+    )
+  assert decode_game(encode_game(game)) == Ok(game)
 }
 
 pub fn encode_decode_with_names_test() {
-  let state =
-    GameState(
+  let round =
+    Round(
       east_wind: Player1,
       prevailing_wind: East,
       winner: None,
-      hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
-      names: #("Alice", "Bob", "Carol", "Dave"),
+      hands: empty_hands(),
       doubles: empty_doubles(),
       hand_statuses: default_statuses(),
     )
-  let encoded = encode_state(state)
-  let decoded = decode_state(encoded)
-  assert decoded == Ok(state)
+  let game =
+    Game(
+      starting_score: 3550,
+      names: #("Alice", "Bob", "Carol", "Dave"),
+      rounds: [round],
+      editing_round: None,
+    )
+  let encoded = encode_game(game)
+  let decoded = decode_game(encoded)
+  assert decoded == Ok(game)
 }
 
 pub fn decode_invalid_json_test() {
-  let result = decode_state("not valid json")
+  let result = decode_game("not valid json")
   assert result
-    != Ok(GameState(
-      east_wind: Player1,
-      prevailing_wind: East,
-      winner: None,
-      hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
+    != Ok(Game(
+      starting_score: 3550,
       names: #("", "", "", ""),
-      doubles: empty_doubles(),
-      hand_statuses: default_statuses(),
+      rounds: [],
+      editing_round: None,
     ))
 }
 
 pub fn encode_decode_with_doubles_test() {
-  let state =
-    GameState(
+  let round =
+    Round(
       east_wind: Player1,
       prevailing_wind: East,
       winner: None,
-      hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
-      names: #("", "", "", ""),
+      hands: empty_hands(),
       doubles: #(
         storage.DoublesContext(
           is_clean: True,
@@ -255,23 +278,99 @@ pub fn encode_decode_with_doubles_test() {
       ),
       hand_statuses: default_statuses(),
     )
-  let encoded = encode_state(state)
-  let decoded = decode_state(encoded)
-  assert decoded == Ok(state)
+  let game =
+    Game(
+      starting_score: 3550,
+      names: #("", "", "", ""),
+      rounds: [round],
+      editing_round: None,
+    )
+  let encoded = encode_game(game)
+  let decoded = decode_game(encoded)
+  assert decoded == Ok(game)
 }
 
 pub fn encode_decode_with_hand_statuses_test() {
-  let state =
-    GameState(
+  let round =
+    Round(
       east_wind: Player1,
       prevailing_wind: East,
       winner: None,
-      hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
-      names: #("", "", "", ""),
+      hands: empty_hands(),
       doubles: empty_doubles(),
       hand_statuses: #(Clean, Dirty, Limit, Clean),
     )
-  let encoded = encode_state(state)
-  let decoded = decode_state(encoded)
-  assert decoded == Ok(state)
+  let game =
+    Game(
+      starting_score: 3550,
+      names: #("", "", "", ""),
+      rounds: [round],
+      editing_round: None,
+    )
+  let encoded = encode_game(game)
+  let decoded = decode_game(encoded)
+  assert decoded == Ok(game)
+}
+
+pub fn encode_decode_multiple_rounds_test() {
+  let round1 =
+    Round(
+      east_wind: Player1,
+      prevailing_wind: East,
+      winner: Some(Player1),
+      hands: #(
+        PlayerHand([Pung]),
+        PlayerHand([]),
+        PlayerHand([]),
+        PlayerHand([]),
+      ),
+      doubles: empty_doubles(),
+      hand_statuses: #(Clean, Dirty, Dirty, Dirty),
+    )
+  let round2 =
+    Round(
+      east_wind: Player1,
+      prevailing_wind: East,
+      winner: Some(Player2),
+      hands: #(
+        PlayerHand([]),
+        PlayerHand([Kong]),
+        PlayerHand([]),
+        PlayerHand([]),
+      ),
+      doubles: empty_doubles(),
+      hand_statuses: #(Dirty, Clean, Dirty, Dirty),
+    )
+  let game =
+    Game(
+      starting_score: 3550,
+      names: #("Alice", "Bob", "Carol", "Dave"),
+      rounds: [round1, round2],
+      editing_round: Some(1),
+    )
+  let encoded = encode_game(game)
+  let decoded = decode_game(encoded)
+  assert decoded == Ok(game)
+}
+
+pub fn encode_decode_custom_starting_score_test() {
+  let round =
+    Round(
+      east_wind: Player1,
+      prevailing_wind: East,
+      winner: None,
+      hands: empty_hands(),
+      doubles: empty_doubles(),
+      hand_statuses: default_statuses(),
+    )
+  let game =
+    Game(
+      starting_score: 5000,
+      names: #("", "", "", ""),
+      rounds: [round],
+      editing_round: None,
+    )
+  let encoded = encode_game(game)
+  let decoded = decode_game(encoded)
+  assert decoded == Ok(game)
 }
