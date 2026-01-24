@@ -777,6 +777,7 @@ fn view_player_hand(
   }
   // Calculate score based on hand status
   let #(total_points, multiplier, doubles_count) = case hand_status {
+    Dirty -> #(0, 1, 0)
     Limit -> {
       // Limit hands are always 500, or 1000 for East Wind
       let limit_score = case is_east {
@@ -785,14 +786,10 @@ fn view_player_hand(
       }
       #(limit_score, 1, 0)
     }
-    _ -> {
+    Clean -> {
       // Normal scoring with doubles
-      let is_clean = case hand_status {
-        Clean -> True
-        _ -> False
-      }
       let effective_doubles =
-        DoublesContext(..doubles_ctx, is_east_wind: is_east, is_clean: is_clean)
+        DoublesContext(..doubles_ctx, is_east_wind: is_east, is_clean: True)
       let base_points = engine.calculate_hand_points(hand, is_winner)
       let mult = engine.calculate_multiplier(effective_doubles)
       let points = engine.calculate_round_score(base_points, mult)
