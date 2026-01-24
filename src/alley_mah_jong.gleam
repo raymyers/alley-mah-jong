@@ -784,8 +784,8 @@ fn view_doubles_section(
     ]),
     div([class("add-row")], [
       span([class("row-label")], [text("3x:")]),
-      double_checkbox(player, ctx, HasAllRedFlowers, "All Red Flowers"),
-      double_checkbox(player, ctx, HasAllBlueFlowers, "All Blue Flowers"),
+      double_checkbox(player, ctx, HasAllRedFlowers, "4 Red Flowers"),
+      double_checkbox(player, ctx, HasAllBlueFlowers, "4 Blue Flowers"),
       double_checkbox(
         player,
         ctx,
