@@ -1,0 +1,39 @@
+id,description,items,status,doubles,is_winner,is_east,points,multiplier,doubles_count
+dirty_always_zero,Dirty hands always score 0 regardless of items,p ph k,dirty,,false,false,0,1,0
+dirty_winner_still_zero,Dirty hands score 0 even when winner,p ph,dirty,,true,false,0,1,0
+limit_hand_500,Limit hand scores exactly 500 pts,,limit,,false,false,500,1,0
+limit_hand_east_1000,Limit hand as East scores 1000 pts,,limit,,false,true,1000,1,0
+limit_ignores_items,Limit hand ignores item points,hkh hkh hkh,limit,,true,false,500,1,0
+item_pung,Pung 2-8 revealed = 2 pts. Clean (2 * 2 = 4),p,clean,,false,false,4,2,1
+item_pung_honors,Pung Honors revealed = 4 pts. Clean (4 * 2 = 8),ph,clean,,false,false,8,2,1
+item_pung_hidden,Pung 2-8 hidden = 4 pts. Clean (4 * 2 = 8),hp,clean,,false,false,8,2,1
+item_pung_honors_hidden,Pung Honors hidden = 8 pts. Clean (8 * 2 = 16),hph,clean,,false,false,16,2,1
+item_kong,Kong 2-8 revealed = 8 pts. Clean (8 * 2 = 16),k,clean,,false,false,16,2,1
+item_kong_honors,Kong Honors revealed = 16 pts. Clean (16 * 2 = 32),kh,clean,,false,false,32,2,1
+item_kong_hidden,Kong 2-8 hidden = 16 pts. Clean (16 * 2 = 32),hk,clean,,false,false,32,2,1
+item_kong_honors_hidden,Kong Honors hidden = 32 pts. Clean (32 * 2 = 64),hkh,clean,,false,false,64,2,1
+item_bonus_pair_wind,Pair of Winds = 2 pts. Clean (2 * 2 = 4),bpw,clean,,false,false,4,2,1
+item_bonus_pair_dragon,Pair of Dragons = 2 pts. Clean (2 * 2 = 4),bpd,clean,,false,false,4,2,1
+item_bonus_flower,Flower = 4 pts. Clean (4 * 2 = 8),bf,clean,,false,false,8,2,1
+winner_bonus,Winner gets +20 mahjong bonus. (2+20) * 2 = 44,p,clean,,true,false,44,2,1
+winner_empty_hand,Winner with empty hand = 20 * 2 = 40,,clean,,true,false,40,2,1
+east_wind_double,East gets auto +1 double. 2 pts * 4x = 8,p,clean,,false,true,8,4,2
+east_wind_winner,East + winner. (2+20) * 4x = 88,p,clean,,true,true,88,4,2
+double_dragon,Dragon pung/kong gives +1 double. 2 pts * 4x = 8,p,clean,dragon,false,false,8,4,2
+double_own_wind,Own wind pung/kong gives +1 double. 2 pts * 4x = 8,p,clean,own_wind,false,false,8,4,2
+double_prevail_wind,Prevailing wind pung/kong gives +1 double. 2 pts * 4x = 8,p,clean,prevail_wind,false,false,8,4,2
+double_own_flowers,Both own flowers gives +1 double. 2 pts * 4x = 8,p,clean,own_flowers,false,false,8,4,2
+double_red_flowers,All 4 red flowers = 3 doubles. 2 pts * 16x = 32,p,clean,red_flowers,false,false,32,16,4
+double_blue_flowers,All 4 blue flowers = 3 doubles. 2 pts * 16x = 32,p,clean,blue_flowers,false,false,32,16,4
+double_pure,Pure (clean no W/D) = 3 doubles. 2 pts * 16x = 32,p,clean,pure,false,false,32,16,4
+stack_two_singles,Dragon + own wind = 2 extra doubles. 2 * 8x = 16,p,clean,dragon own_wind,false,false,16,8,3
+stack_triple_plus_single,Red flowers (3) + dragon (1) + clean (1) = 5. 2 * 32x = 64,p,clean,red_flowers dragon,false,false,64,32,5
+stack_two_triples,Red (3) + blue (3) + clean (1) = 7. 2 * 128x = 256,p,clean,red_flowers blue_flowers,false,false,256,128,7
+stack_all_singles,All 4 single conditions + clean + east = 6 doubles. 2 * 64 = 128,p,clean,dragon own_wind prevail_wind own_flowers,false,true,128,64,6
+max_score_cap,Score capped at 1000. 100 pts * 4x = 400,hkh hkh hkh bf,clean,dragon,false,false,400,4,2
+max_score_over_cap,Score over 1000 gets capped. 100 * 16x = 1600 -> 1000,hkh hkh hkh bf,clean,red_flowers,false,false,1000,16,4
+max_score_high_doubles,Very high multiplier still capped. 22 * 128x -> 1000,p,clean,red_flowers blue_flowers,true,false,1000,128,7
+empty_hand_clean,Empty clean hand = 0 * 2 = 0,,clean,,false,false,0,2,1
+complex_winner_east_doubles,Winner East dragon. (8+4+20) * 8x = 256,k bf,clean,dragon,true,true,256,8,3
+realistic_high_hand,Strong hand: 2 hidden honors kongs + flower + winner + pure,hkh hkh bf,clean,pure,true,false,1000,16,4
+multiple_items_no_doubles,Multiple items clean only. (2+4+8+2+4) * 2 = 40,p ph k bpw bf,clean,,false,false,40,2,1
