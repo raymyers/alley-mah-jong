@@ -1152,6 +1152,7 @@ fn styles() -> String {
       2px 2px 0 rgba(44,44,44,0.12),
       4px 4px 8px rgba(44,44,44,0.06),
       1px 0 0 rgba(44,44,44,0.15);
+    min-height: 280px;
   }
   .player-hand.winner {
     border-color: var(--carbon);
