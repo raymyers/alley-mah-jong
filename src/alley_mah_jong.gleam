@@ -392,7 +392,19 @@ fn toggle_condition(
   condition: DoubleCondition,
 ) -> DoublesContext {
   case condition {
-    IsClean -> DoublesContext(..ctx, is_clean: !ctx.is_clean)
+    // Clean and Clean No Winds/Dragons are mutually exclusive
+    IsClean ->
+      DoublesContext(
+        ..ctx,
+        is_clean: !ctx.is_clean,
+        is_clean_no_winds_or_dragons: False,
+      )
+    IsCleanNoWindsOrDragons ->
+      DoublesContext(
+        ..ctx,
+        is_clean_no_winds_or_dragons: !ctx.is_clean_no_winds_or_dragons,
+        is_clean: False,
+      )
     HasDragonPungOrKong ->
       DoublesContext(
         ..ctx,
@@ -414,11 +426,6 @@ fn toggle_condition(
       DoublesContext(..ctx, has_all_red_flowers: !ctx.has_all_red_flowers)
     HasAllBlueFlowers ->
       DoublesContext(..ctx, has_all_blue_flowers: !ctx.has_all_blue_flowers)
-    IsCleanNoWindsOrDragons ->
-      DoublesContext(
-        ..ctx,
-        is_clean_no_winds_or_dragons: !ctx.is_clean_no_winds_or_dragons,
-      )
   }
 }
 

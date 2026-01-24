@@ -144,18 +144,13 @@ pub fn all_single_conditions_test() {
 
 // --- Clean Interaction ---
 
-pub fn clean_no_winds_dragons_implies_clean_test() {
-  // If you're clean with no winds/dragons, you're also clean
-  // But the 3-double condition is separate, so both can apply
-  // clean (1) + clean_no_winds_dragons (3) = 4 doubles
+pub fn clean_no_winds_dragons_gives_three_doubles_only_test() {
+  // Clean and Clean No Winds/Dragons are mutually exclusive in UI
+  // Clean No Winds/Dragons alone gives 3 doubles
   let ctx =
-    DoublesContext(
-      ..no_doubles(),
-      is_clean: True,
-      is_clean_no_winds_or_dragons: True,
-    )
-  assert calculate_doubles(ctx) == 4
-  assert calculate_multiplier(ctx) == 16
+    DoublesContext(..no_doubles(), is_clean_no_winds_or_dragons: True)
+  assert calculate_doubles(ctx) == 3
+  assert calculate_multiplier(ctx) == 8
 }
 
 // --- Round Score with Max Cap ---
