@@ -817,33 +817,38 @@ fn view_player_hand(
       ]),
     ]),
     view_hand_status_selector(player, hand_status),
-    div(
-      [class("hand-items")],
-      list.index_map(hand.items, fn(item, i) { removable_item(player, item, i) }),
-    ),
-    div([class("add-section")], [
-      div([class("add-row")], [
-        span([class("row-label")], [text("Revealed:")]),
-        item_button(player, Pung),
-        item_button(player, PungHonors),
-        item_button(player, Kong),
-        item_button(player, KongHonors),
-      ]),
-      div([class("add-row")], [
-        span([class("row-label")], [text("Hidden:")]),
-        item_button(player, PungHidden),
-        item_button(player, PungHonorsHidden),
-        item_button(player, KongHidden),
-        item_button(player, KongHonorsHidden),
-      ]),
-      div([class("add-row")], [
-        span([class("row-label")], [text("Bonus:")]),
-        item_button(player, BonusPairWind),
-        item_button(player, BonusPairDragon),
-        item_button(player, BonusFlower),
-      ]),
-    ]),
-    view_doubles_section(player, doubles_ctx, is_east),
+    case hand_status {
+      Clean -> div([], [
+        div(
+          [class("hand-items")],
+          list.index_map(hand.items, fn(item, i) { removable_item(player, item, i) }),
+        ),
+        div([class("add-section")], [
+          div([class("add-row")], [
+            span([class("row-label")], [text("Revealed:")]),
+            item_button(player, Pung),
+            item_button(player, PungHonors),
+            item_button(player, Kong),
+            item_button(player, KongHonors),
+          ]),
+          div([class("add-row")], [
+            span([class("row-label")], [text("Hidden:")]),
+            item_button(player, PungHidden),
+            item_button(player, PungHonorsHidden),
+            item_button(player, KongHidden),
+            item_button(player, KongHonorsHidden),
+          ]),
+          div([class("add-row")], [
+            span([class("row-label")], [text("Bonus:")]),
+            item_button(player, BonusPairWind),
+            item_button(player, BonusPairDragon),
+            item_button(player, BonusFlower),
+          ]),
+        ]),
+        view_doubles_section(player, doubles_ctx, is_east),
+      ])
+      _ -> text("")
+    },
   ])
 }
 
