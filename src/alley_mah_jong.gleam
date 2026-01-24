@@ -22,6 +22,12 @@ pub type Page {
   RulesPage
 }
 
+pub type HandStatus {
+  Dirty
+  Clean
+  Limit
+}
+
 pub type Model {
   Model(
     page: Page,
@@ -31,6 +37,7 @@ pub type Model {
     hands: #(PlayerHand, PlayerHand, PlayerHand, PlayerHand),
     names: #(String, String, String, String),
     doubles: #(DoublesContext, DoublesContext, DoublesContext, DoublesContext),
+    hand_statuses: #(HandStatus, HandStatus, HandStatus, HandStatus),
   )
 }
 
@@ -53,6 +60,7 @@ fn default_model() -> Model {
       engine.no_doubles(),
       engine.no_doubles(),
     ),
+    hand_statuses: #(Dirty, Dirty, Dirty, Dirty),
   )
 }
 
@@ -83,6 +91,12 @@ pub fn model_to_state(model: Model) -> storage.GameState {
       doubles_to_storage(model.doubles.2),
       doubles_to_storage(model.doubles.3),
     ),
+    hand_statuses: #(
+      hand_status_to_storage(model.hand_statuses.0),
+      hand_status_to_storage(model.hand_statuses.1),
+      hand_status_to_storage(model.hand_statuses.2),
+      hand_status_to_storage(model.hand_statuses.3),
+    ),
   )
 }
 
@@ -104,6 +118,12 @@ fn model_from_state(state: storage.GameState) -> Model {
       doubles_from_storage(state.doubles.1),
       doubles_from_storage(state.doubles.2),
       doubles_from_storage(state.doubles.3),
+    ),
+    hand_statuses: #(
+      hand_status_from_storage(state.hand_statuses.0),
+      hand_status_from_storage(state.hand_statuses.1),
+      hand_status_from_storage(state.hand_statuses.2),
+      hand_status_from_storage(state.hand_statuses.3),
     ),
   )
 }
@@ -212,6 +232,22 @@ fn doubles_from_storage(ctx: storage.DoublesContext) -> DoublesContext {
   )
 }
 
+fn hand_status_to_storage(status: HandStatus) -> storage.HandStatus {
+  case status {
+    Dirty -> storage.Dirty
+    Clean -> storage.Clean
+    Limit -> storage.Limit
+  }
+}
+
+fn hand_status_from_storage(status: storage.HandStatus) -> HandStatus {
+  case status {
+    storage.Dirty -> Dirty
+    storage.Clean -> Clean
+    storage.Limit -> Limit
+  }
+}
+
 fn save_model(model: Model) -> Nil {
   storage.save_state(model_to_state(model))
 }
@@ -219,7 +255,6 @@ fn save_model(model: Model) -> Nil {
 // --- Double Conditions (for UI toggling) ---
 
 pub type DoubleCondition {
-  IsClean
   HasDragonPungOrKong
   HasOwnWindPungOrKong
   HasPrevailingWindPungOrKong
@@ -240,6 +275,7 @@ pub type Msg {
   AddItem(Player, ScoringItem)
   RemoveItem(Player, Int)
   ToggleDouble(Player, DoubleCondition)
+  SetHandStatus(Player, HandStatus)
   NewRound
 }
 
@@ -259,6 +295,7 @@ fn update(model: Model, msg: Msg) -> Model {
         RemoveItem(player, index) -> remove_item_from_hand(model, player, index)
         ToggleDouble(player, condition) ->
           toggle_double(model, player, condition)
+        SetHandStatus(player, status) -> set_hand_status(model, player, status)
         NewRound ->
           Model(
             ..model,
@@ -275,6 +312,7 @@ fn update(model: Model, msg: Msg) -> Model {
               engine.no_doubles(),
               engine.no_doubles(),
             ),
+            hand_statuses: #(Dirty, Dirty, Dirty, Dirty),
           )
       }
       save_model(new_model)
@@ -392,19 +430,6 @@ fn toggle_condition(
   condition: DoubleCondition,
 ) -> DoublesContext {
   case condition {
-    // Clean and Clean No Winds/Dragons are mutually exclusive
-    IsClean ->
-      DoublesContext(
-        ..ctx,
-        is_clean: !ctx.is_clean,
-        is_clean_no_winds_or_dragons: False,
-      )
-    IsCleanNoWindsOrDragons ->
-      DoublesContext(
-        ..ctx,
-        is_clean_no_winds_or_dragons: !ctx.is_clean_no_winds_or_dragons,
-        is_clean: False,
-      )
     HasDragonPungOrKong ->
       DoublesContext(
         ..ctx,
@@ -426,12 +451,16 @@ fn toggle_condition(
       DoublesContext(..ctx, has_all_red_flowers: !ctx.has_all_red_flowers)
     HasAllBlueFlowers ->
       DoublesContext(..ctx, has_all_blue_flowers: !ctx.has_all_blue_flowers)
+    IsCleanNoWindsOrDragons ->
+      DoublesContext(
+        ..ctx,
+        is_clean_no_winds_or_dragons: !ctx.is_clean_no_winds_or_dragons,
+      )
   }
 }
 
 fn get_condition_value(ctx: DoublesContext, condition: DoubleCondition) -> Bool {
   case condition {
-    IsClean -> ctx.is_clean
     HasDragonPungOrKong -> ctx.has_dragon_pung_or_kong
     HasOwnWindPungOrKong -> ctx.has_own_wind_pung_or_kong
     HasPrevailingWindPungOrKong -> ctx.has_prevailing_wind_pung_or_kong
@@ -440,6 +469,36 @@ fn get_condition_value(ctx: DoublesContext, condition: DoubleCondition) -> Bool 
     HasAllBlueFlowers -> ctx.has_all_blue_flowers
     IsCleanNoWindsOrDragons -> ctx.is_clean_no_winds_or_dragons
   }
+}
+
+fn set_hand_status(model: Model, player: Player, status: HandStatus) -> Model {
+  let statuses = case player {
+    Player1 -> #(
+      status,
+      model.hand_statuses.1,
+      model.hand_statuses.2,
+      model.hand_statuses.3,
+    )
+    Player2 -> #(
+      model.hand_statuses.0,
+      status,
+      model.hand_statuses.2,
+      model.hand_statuses.3,
+    )
+    Player3 -> #(
+      model.hand_statuses.0,
+      model.hand_statuses.1,
+      status,
+      model.hand_statuses.3,
+    )
+    Player4 -> #(
+      model.hand_statuses.0,
+      model.hand_statuses.1,
+      model.hand_statuses.2,
+      status,
+    )
+  }
+  Model(..model, hand_statuses: statuses)
 }
 
 // --- View ---
@@ -658,6 +717,7 @@ fn view_all_hands(model: Model) -> Element(Msg) {
       Player1,
       model.hands.0,
       model.doubles.0,
+      model.hand_statuses.0,
       model.east_wind,
       model.winner,
       model.names,
@@ -666,6 +726,7 @@ fn view_all_hands(model: Model) -> Element(Msg) {
       Player2,
       model.hands.1,
       model.doubles.1,
+      model.hand_statuses.1,
       model.east_wind,
       model.winner,
       model.names,
@@ -674,6 +735,7 @@ fn view_all_hands(model: Model) -> Element(Msg) {
       Player3,
       model.hands.2,
       model.doubles.2,
+      model.hand_statuses.2,
       model.east_wind,
       model.winner,
       model.names,
@@ -682,6 +744,7 @@ fn view_all_hands(model: Model) -> Element(Msg) {
       Player4,
       model.hands.3,
       model.doubles.3,
+      model.hand_statuses.3,
       model.east_wind,
       model.winner,
       model.names,
@@ -693,6 +756,7 @@ fn view_player_hand(
   player: Player,
   hand: PlayerHand,
   doubles_ctx: DoublesContext,
+  hand_status: HandStatus,
   east: Player,
   winner: Option(Player),
   names: #(String, String, String, String),
@@ -711,8 +775,13 @@ fn view_player_hand(
     True -> "player-hand winner"
     False -> "player-hand"
   }
-  // Calculate with is_east_wind auto-set
-  let effective_doubles = DoublesContext(..doubles_ctx, is_east_wind: is_east)
+  // Calculate with is_east_wind and is_clean auto-set from hand_status
+  let is_clean = case hand_status {
+    Clean -> True
+    _ -> False
+  }
+  let effective_doubles =
+    DoublesContext(..doubles_ctx, is_east_wind: is_east, is_clean: is_clean)
   let base_points = engine.calculate_hand_points(hand, is_winner)
   let multiplier = engine.calculate_multiplier(effective_doubles)
   let total_points = engine.calculate_round_score(base_points, multiplier)
@@ -733,6 +802,7 @@ fn view_player_hand(
         },
       ]),
     ]),
+    view_hand_status_selector(player, hand_status),
     div(
       [class("hand-items")],
       list.index_map(hand.items, fn(item, i) { removable_item(player, item, i) }),
@@ -763,6 +833,30 @@ fn view_player_hand(
   ])
 }
 
+fn view_hand_status_selector(player: Player, status: HandStatus) -> Element(Msg) {
+  div([class("hand-status-row")], [
+    span([class("row-label")], [text("Status:")]),
+    status_button(player, status, Dirty, "Dirty"),
+    status_button(player, status, Clean, "Clean"),
+    status_button(player, status, Limit, "Limit"),
+  ])
+}
+
+fn status_button(
+  player: Player,
+  current: HandStatus,
+  target: HandStatus,
+  label: String,
+) -> Element(Msg) {
+  let btn_class = case current == target {
+    True -> "status-btn selected"
+    False -> "status-btn"
+  }
+  button([class(btn_class), event.on_click(SetHandStatus(player, target))], [
+    text(label),
+  ])
+}
+
 fn view_doubles_section(
   player: Player,
   ctx: DoublesContext,
@@ -771,7 +865,6 @@ fn view_doubles_section(
   div([class("doubles-section")], [
     div([class("add-row")], [
       span([class("row-label")], [text("Doubles:")]),
-      double_checkbox(player, ctx, IsClean, "Clean"),
       double_checkbox(player, ctx, HasDragonPungOrKong, "Dragon P/K"),
       double_checkbox(player, ctx, HasOwnWindPungOrKong, "Own Wind P/K"),
       double_checkbox(
@@ -780,10 +873,10 @@ fn view_doubles_section(
         HasPrevailingWindPungOrKong,
         "Prevail Wind P/K",
       ),
+      double_checkbox(player, ctx, HasBothOwnFlowers, "Both Your Flowers"),
     ]),
     div([class("add-row")], [
       span([class("row-label")], []),
-      double_checkbox(player, ctx, HasBothOwnFlowers, "Both Your Flowers"),
       case is_east {
         True -> span([class("double-auto")], [text("East Wind (auto)")])
         False -> text("")
@@ -1200,6 +1293,34 @@ fn styles() -> String {
   .multiplier {
     font-size: 12px;
     color: var(--ink-purple);
+    font-weight: bold;
+  }
+  /* Hand status selector */
+  .hand-status-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px dotted var(--carbon-faded);
+  }
+  .status-btn {
+    padding: 3px 8px;
+    font-size: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    border: 1px solid var(--carbon-faded);
+    background: var(--btn-dark);
+    cursor: pointer;
+    box-shadow: 1px 1px 0 rgba(44,44,44,0.1);
+  }
+  .status-btn:hover {
+    background: var(--btn-darker);
+    border-color: var(--carbon);
+  }
+  .status-btn.selected {
+    background: var(--ink-purple);
+    color: var(--paper);
+    border-color: var(--ink-purple);
     font-weight: bold;
   }
   /* Doubles section */

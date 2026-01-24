@@ -75,6 +75,12 @@ pub fn no_doubles() -> DoublesContext {
   )
 }
 
+pub type HandStatus {
+  Dirty
+  Clean
+  Limit
+}
+
 pub type GameState {
   GameState(
     east_wind: Player,
@@ -83,6 +89,7 @@ pub type GameState {
     hands: #(PlayerHand, PlayerHand, PlayerHand, PlayerHand),
     names: #(String, String, String, String),
     doubles: #(DoublesContext, DoublesContext, DoublesContext, DoublesContext),
+    hand_statuses: #(HandStatus, HandStatus, HandStatus, HandStatus),
   )
 }
 
@@ -100,6 +107,7 @@ fn encode_state_json(state: GameState) -> Json {
     #("hands", encode_hands(state.hands)),
     #("names", encode_names(state.names)),
     #("doubles", encode_doubles_list(state.doubles)),
+    #("hand_statuses", encode_hand_statuses(state.hand_statuses)),
   ])
 }
 
@@ -164,6 +172,23 @@ fn encode_doubles_list(
   json.array([doubles.0, doubles.1, doubles.2, doubles.3], encode_doubles)
 }
 
+fn encode_hand_statuses(
+  statuses: #(HandStatus, HandStatus, HandStatus, HandStatus),
+) -> Json {
+  json.array(
+    [statuses.0, statuses.1, statuses.2, statuses.3],
+    encode_hand_status,
+  )
+}
+
+fn encode_hand_status(status: HandStatus) -> Json {
+  json.string(case status {
+    Dirty -> "Dirty"
+    Clean -> "Clean"
+    Limit -> "Limit"
+  })
+}
+
 fn encode_doubles(ctx: DoublesContext) -> Json {
   json.object([
     #("is_clean", json.bool(ctx.is_clean)),
@@ -204,6 +229,14 @@ fn state_decoder() -> decode.Decoder(GameState) {
     Some(d) -> d
     None -> #(no_doubles(), no_doubles(), no_doubles(), no_doubles())
   }
+  use statuses_opt <- decode.field(
+    "hand_statuses",
+    decode.optional(hand_statuses_decoder()),
+  )
+  let hand_statuses = case statuses_opt {
+    Some(s) -> s
+    None -> #(Dirty, Dirty, Dirty, Dirty)
+  }
   decode.success(GameState(
     east_wind: east_wind,
     prevailing_wind: prevailing_wind,
@@ -211,6 +244,7 @@ fn state_decoder() -> decode.Decoder(GameState) {
     hands: hands,
     names: names,
     doubles: doubles,
+    hand_statuses: hand_statuses,
   ))
 }
 
@@ -292,6 +326,26 @@ fn doubles_list_decoder() -> decode.Decoder(
         #(no_doubles(), no_doubles(), no_doubles(), no_doubles()),
         "4 doubles contexts",
       )
+  }
+}
+
+fn hand_statuses_decoder() -> decode.Decoder(
+  #(HandStatus, HandStatus, HandStatus, HandStatus),
+) {
+  use statuses <- decode.then(decode.list(hand_status_decoder()))
+  case statuses {
+    [s1, s2, s3, s4] -> decode.success(#(s1, s2, s3, s4))
+    _ -> decode.failure(#(Dirty, Dirty, Dirty, Dirty), "4 hand statuses")
+  }
+}
+
+fn hand_status_decoder() -> decode.Decoder(HandStatus) {
+  use s <- decode.then(decode.string)
+  case s {
+    "Dirty" -> decode.success(Dirty)
+    "Clean" -> decode.success(Clean)
+    "Limit" -> decode.success(Limit)
+    _ -> decode.failure(Dirty, "HandStatus")
   }
 }
 

@@ -147,8 +147,7 @@ pub fn all_single_conditions_test() {
 pub fn clean_no_winds_dragons_gives_three_doubles_only_test() {
   // Clean and Clean No Winds/Dragons are mutually exclusive in UI
   // Clean No Winds/Dragons alone gives 3 doubles
-  let ctx =
-    DoublesContext(..no_doubles(), is_clean_no_winds_or_dragons: True)
+  let ctx = DoublesContext(..no_doubles(), is_clean_no_winds_or_dragons: True)
   assert calculate_doubles(ctx) == 3
   assert calculate_multiplier(ctx) == 8
 }

@@ -117,6 +117,12 @@ Mah-jong'd players are scored regardless of clean or dirty status.
 
 Non-Mah-jong'd players are scored only if they are clean.
 
+## Max score
+
+Per round, 1,000 pts is the most that can be scored. You may still be paid that by multiple players.
+
+So the order of processing is: double, max, paying. Equivelently, we could say max applies to round score, not game score.
+
 ## Bonus
 
 Pair of Winds (2pt)

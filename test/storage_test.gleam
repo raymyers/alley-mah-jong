@@ -1,13 +1,17 @@
 import gleam/option.{None, Some}
 import storage.{
-  BonusFlower, BonusPairDragon, BonusPairWind, East, GameState, Kong, KongHidden,
-  KongHonors, KongHonorsHidden, North, Player1, Player2, Player3, Player4,
-  PlayerHand, Pung, PungHidden, PungHonors, PungHonorsHidden, South, West,
-  decode_state, encode_state, no_doubles,
+  BonusFlower, BonusPairDragon, BonusPairWind, Clean, Dirty, East, GameState,
+  Kong, KongHidden, KongHonors, KongHonorsHidden, Limit, North, Player1, Player2,
+  Player3, Player4, PlayerHand, Pung, PungHidden, PungHonors, PungHonorsHidden,
+  South, West, decode_state, encode_state, no_doubles,
 }
 
 fn empty_doubles() {
   #(no_doubles(), no_doubles(), no_doubles(), no_doubles())
+}
+
+fn default_statuses() {
+  #(Dirty, Dirty, Dirty, Dirty)
 }
 
 // --- Encoding/Decoding Tests ---
@@ -21,6 +25,7 @@ pub fn encode_decode_empty_state_test() {
       hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
       names: #("", "", "", ""),
       doubles: empty_doubles(),
+      hand_statuses: default_statuses(),
     )
   let encoded = encode_state(state)
   let decoded = decode_state(encoded)
@@ -41,6 +46,7 @@ pub fn encode_decode_full_state_test() {
       ),
       names: #("Alice", "Bob", "Carol", "Dave"),
       doubles: empty_doubles(),
+      hand_statuses: default_statuses(),
     )
   let encoded = encode_state(state)
   let decoded = decode_state(encoded)
@@ -48,7 +54,6 @@ pub fn encode_decode_full_state_test() {
 }
 
 pub fn encode_decode_all_players_test() {
-  // Test all player values
   let state1 =
     GameState(
       east_wind: Player1,
@@ -57,6 +62,7 @@ pub fn encode_decode_all_players_test() {
       hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
       names: #("", "", "", ""),
       doubles: empty_doubles(),
+      hand_statuses: default_statuses(),
     )
   assert decode_state(encode_state(state1)) == Ok(state1)
 
@@ -68,6 +74,7 @@ pub fn encode_decode_all_players_test() {
       hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
       names: #("", "", "", ""),
       doubles: empty_doubles(),
+      hand_statuses: default_statuses(),
     )
   assert decode_state(encode_state(state2)) == Ok(state2)
 
@@ -79,6 +86,7 @@ pub fn encode_decode_all_players_test() {
       hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
       names: #("", "", "", ""),
       doubles: empty_doubles(),
+      hand_statuses: default_statuses(),
     )
   assert decode_state(encode_state(state3)) == Ok(state3)
 
@@ -90,6 +98,7 @@ pub fn encode_decode_all_players_test() {
       hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
       names: #("", "", "", ""),
       doubles: empty_doubles(),
+      hand_statuses: default_statuses(),
     )
   assert decode_state(encode_state(state4)) == Ok(state4)
 }
@@ -103,6 +112,7 @@ pub fn encode_decode_all_winds_test() {
       hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
       names: #("", "", "", ""),
       doubles: empty_doubles(),
+      hand_statuses: default_statuses(),
     )
   assert decode_state(encode_state(state_east)) == Ok(state_east)
 
@@ -114,6 +124,7 @@ pub fn encode_decode_all_winds_test() {
       hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
       names: #("", "", "", ""),
       doubles: empty_doubles(),
+      hand_statuses: default_statuses(),
     )
   assert decode_state(encode_state(state_south)) == Ok(state_south)
 
@@ -125,6 +136,7 @@ pub fn encode_decode_all_winds_test() {
       hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
       names: #("", "", "", ""),
       doubles: empty_doubles(),
+      hand_statuses: default_statuses(),
     )
   assert decode_state(encode_state(state_west)) == Ok(state_west)
 
@@ -136,6 +148,7 @@ pub fn encode_decode_all_winds_test() {
       hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
       names: #("", "", "", ""),
       doubles: empty_doubles(),
+      hand_statuses: default_statuses(),
     )
   assert decode_state(encode_state(state_north)) == Ok(state_north)
 }
@@ -167,6 +180,7 @@ pub fn encode_decode_all_scoring_items_test() {
       ),
       names: #("", "", "", ""),
       doubles: empty_doubles(),
+      hand_statuses: default_statuses(),
     )
   assert decode_state(encode_state(state)) == Ok(state)
 }
@@ -180,6 +194,7 @@ pub fn encode_decode_no_winner_test() {
       hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
       names: #("", "", "", ""),
       doubles: empty_doubles(),
+      hand_statuses: default_statuses(),
     )
   assert decode_state(encode_state(state)) == Ok(state)
 }
@@ -193,6 +208,7 @@ pub fn encode_decode_with_names_test() {
       hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
       names: #("Alice", "Bob", "Carol", "Dave"),
       doubles: empty_doubles(),
+      hand_statuses: default_statuses(),
     )
   let encoded = encode_state(state)
   let decoded = decode_state(encoded)
@@ -209,6 +225,7 @@ pub fn decode_invalid_json_test() {
       hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
       names: #("", "", "", ""),
       doubles: empty_doubles(),
+      hand_statuses: default_statuses(),
     ))
 }
 
@@ -236,6 +253,23 @@ pub fn encode_decode_with_doubles_test() {
         no_doubles(),
         no_doubles(),
       ),
+      hand_statuses: default_statuses(),
+    )
+  let encoded = encode_state(state)
+  let decoded = decode_state(encoded)
+  assert decoded == Ok(state)
+}
+
+pub fn encode_decode_with_hand_statuses_test() {
+  let state =
+    GameState(
+      east_wind: Player1,
+      prevailing_wind: East,
+      winner: None,
+      hands: #(PlayerHand([]), PlayerHand([]), PlayerHand([]), PlayerHand([])),
+      names: #("", "", "", ""),
+      doubles: empty_doubles(),
+      hand_statuses: #(Clean, Dirty, Limit, Clean),
     )
   let encoded = encode_state(state)
   let decoded = decode_state(encoded)
