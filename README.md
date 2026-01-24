@@ -13,3 +13,7 @@ gleam build                    # Build the project
 ```
 
 The dev server will start at http://localhost:1234 by default.
+
+## Testing
+
+Tests include unit tests and a CSV-driven harness for scoring scenarios. Test cases are defined in `test/cases/scoring.csv` using the notation documented in `docs/NOTATION.md`.
