@@ -193,7 +193,7 @@ pub fn limit_score_constants_test() {
 
 pub fn dirty_hand_scores_zero_test() {
   let hand = PlayerHand(items: [Pung])
-  let #(points, mult, dbl) =
+  let #(points, mult, dbl, _) =
     calculate_final_score(hand, Dirty, no_doubles(), False, False)
   assert points == 0
   assert mult == 1
@@ -202,7 +202,7 @@ pub fn dirty_hand_scores_zero_test() {
 
 pub fn limit_hand_scores_500_test() {
   let hand = PlayerHand(items: [])
-  let #(points, mult, dbl) =
+  let #(points, mult, dbl, _) =
     calculate_final_score(hand, Limit, no_doubles(), False, False)
   assert points == 500
   assert mult == 1
@@ -211,7 +211,7 @@ pub fn limit_hand_scores_500_test() {
 
 pub fn limit_hand_east_scores_1000_test() {
   let hand = PlayerHand(items: [])
-  let #(points, mult, dbl) =
+  let #(points, mult, dbl, _) =
     calculate_final_score(hand, Limit, no_doubles(), False, True)
   assert points == 1000
   assert mult == 1
@@ -221,7 +221,7 @@ pub fn limit_hand_east_scores_1000_test() {
 pub fn clean_hand_calculates_normally_test() {
   let hand = PlayerHand(items: [Pung])
   // Pung = 2 pts, clean = 1 double = 2x, total = 4
-  let #(points, mult, dbl) =
+  let #(points, mult, dbl, _) =
     calculate_final_score(hand, Clean, no_doubles(), False, False)
   assert points == 4
   assert mult == 2
@@ -231,7 +231,7 @@ pub fn clean_hand_calculates_normally_test() {
 pub fn clean_hand_winner_gets_bonus_test() {
   let hand = PlayerHand(items: [Pung])
   // Pung = 2 pts + 20 mahjong bonus = 22, clean = 2x, total = 44
-  let #(points, mult, _) =
+  let #(points, mult, _, _) =
     calculate_final_score(hand, Clean, no_doubles(), True, False)
   assert points == 44
   assert mult == 2

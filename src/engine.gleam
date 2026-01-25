@@ -230,22 +230,22 @@ pub fn is_round_scoreable(
 }
 
 /// Calculate score based on hand status, hand contents, doubles, and position
+/// Returns (total_points, multiplier, doubles_count, reasons)
 pub fn calculate_final_score(
   hand: PlayerHand,
   hand_status: HandStatus,
   doubles_ctx: DoublesContext,
   is_winner: Bool,
   is_east: Bool,
-) -> #(Int, Int, Int) {
-  // Returns (total_points, multiplier, doubles_count)
+) -> #(Int, Int, Int, List(String)) {
   case hand_status {
-    Dirty -> #(0, 1, 0)
+    Dirty -> #(0, 1, 0, [])
     Limit -> {
       let score = case is_east {
         True -> limit_score_east
         False -> limit_score
       }
-      #(score, 1, 0)
+      #(score, 1, 0, ["Limit Hand"])
     }
     Clean -> {
       let effective_doubles =
@@ -254,7 +254,8 @@ pub fn calculate_final_score(
       let multiplier = calculate_multiplier(effective_doubles)
       let points = calculate_round_score(base_points, multiplier)
       let doubles_count = calculate_doubles(effective_doubles)
-      #(points, multiplier, doubles_count)
+      let reasons = calculate_doubles_with_reasons(effective_doubles)
+      #(points, multiplier, doubles_count, reasons)
     }
   }
 }
@@ -308,6 +309,30 @@ pub fn calculate_doubles(ctx: DoublesContext) -> Int {
       ctx.is_clean_no_winds_or_dragons,
     ])
   singles + triples * 3
+}
+
+/// Calculate doubles and return the list of reasons that contributed
+pub fn calculate_doubles_with_reasons(ctx: DoublesContext) -> List(String) {
+  let single_conditions = [
+    #(ctx.is_clean, "Clean (1x)"),
+    #(ctx.has_dragon_pung_or_kong, "Dragon Pung/Kong (1x)"),
+    #(ctx.has_own_wind_pung_or_kong, "Own Wind Pung/Kong (1x)"),
+    #(ctx.has_prevailing_wind_pung_or_kong, "Prevailing Wind Pung/Kong (1x)"),
+    #(ctx.has_both_own_flowers, "Both Own Flowers (1x)"),
+    #(ctx.is_east_wind, "East Wind (1x)"),
+  ]
+  let triple_conditions = [
+    #(ctx.has_all_red_flowers, "All Red Flowers (3x)"),
+    #(ctx.has_all_blue_flowers, "All Blue Flowers (3x)"),
+    #(ctx.is_clean_no_winds_or_dragons, "Clean No Winds/Dragons (3x)"),
+  ]
+  let all_conditions = list.append(single_conditions, triple_conditions)
+  list.filter_map(all_conditions, fn(pair) {
+    case pair.0 {
+      True -> Ok(pair.1)
+      False -> Error(Nil)
+    }
+  })
 }
 
 fn count_true(bools: List(Bool)) -> Int {

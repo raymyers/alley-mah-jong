@@ -8,6 +8,7 @@ import engine.{
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/string
 import lustre
 import lustre/attribute.{class}
 import lustre/element.{type Element, text}
@@ -1131,7 +1132,7 @@ fn view_player_hand(
   let engine_status = hand_status_to_engine(ui_hand_status)
   let engine_doubles = doubles_from_storage(doubles_ctx)
   let engine_hand = hand_from_storage(hand)
-  let #(total_points, multiplier, doubles_count) =
+  let #(total_points, multiplier, doubles_count, reasons) =
     engine.calculate_final_score(
       engine_hand,
       engine_status,
@@ -1139,6 +1140,10 @@ fn view_player_hand(
       is_winner,
       is_east,
     )
+  let tooltip_text = case reasons {
+    [] -> ""
+    _ -> string.join(reasons, "\n")
+  }
   div([class(hand_class)], [
     div([class("hand-header")], [
       h3([], [
@@ -1148,9 +1153,10 @@ fn view_player_hand(
         span([class("points")], [text(int.to_string(total_points) <> " pts")]),
         case doubles_count > 0 {
           True ->
-            span([class("multiplier")], [
-              text("(" <> int.to_string(multiplier) <> "x)"),
-            ])
+            span(
+              [class("multiplier"), attribute.attribute("title", tooltip_text)],
+              [text("(" <> int.to_string(multiplier) <> "x)")],
+            )
           False -> text("")
         },
       ]),
@@ -1485,7 +1491,7 @@ fn calculate_round_scores(round: Round) -> #(Int, Int, Int, Int) {
     let engine_hand = hand_from_storage(hand)
     let engine_doubles = doubles_from_storage(doubles)
     let engine_status = hand_status_to_engine(hand_status_from_storage(status))
-    let #(score, _, _) =
+    let #(score, _, _, _) =
       engine.calculate_final_score(
         engine_hand,
         engine_status,

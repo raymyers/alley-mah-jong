@@ -123,7 +123,7 @@ fn execute_case(test_case: TestCase) -> Result(Nil, String) {
   use status <- result.try(parse_status(test_case.status))
   let doubles = parse_doubles(string.join(test_case.doubles, " "))
 
-  let #(actual_points, actual_mult, actual_doubles) =
+  let #(actual_points, actual_mult, actual_doubles, _reasons) =
     calculate_final_score(
       hand,
       status,
