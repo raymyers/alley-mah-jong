@@ -314,17 +314,17 @@ pub fn calculate_doubles(ctx: DoublesContext) -> Int {
 /// Calculate doubles and return the list of reasons that contributed
 pub fn calculate_doubles_with_reasons(ctx: DoublesContext) -> List(String) {
   let single_conditions = [
-    #(ctx.is_clean, "Clean (1x)"),
-    #(ctx.has_dragon_pung_or_kong, "Dragon Pung/Kong (1x)"),
-    #(ctx.has_own_wind_pung_or_kong, "Own Wind Pung/Kong (1x)"),
-    #(ctx.has_prevailing_wind_pung_or_kong, "Prevailing Wind Pung/Kong (1x)"),
-    #(ctx.has_both_own_flowers, "Both Own Flowers (1x)"),
-    #(ctx.is_east_wind, "East Wind (1x)"),
+    #(ctx.is_clean, "Clean (2x)"),
+    #(ctx.has_dragon_pung_or_kong, "Dragon Pung/Kong (2x)"),
+    #(ctx.has_own_wind_pung_or_kong, "Own Wind Pung/Kong (2x)"),
+    #(ctx.has_prevailing_wind_pung_or_kong, "Prevailing Wind Pung/Kong (2x)"),
+    #(ctx.has_both_own_flowers, "Both Own Flowers (2x)"),
+    #(ctx.is_east_wind, "East Wind (2x)"),
   ]
   let triple_conditions = [
-    #(ctx.has_all_red_flowers, "All Red Flowers (3x)"),
-    #(ctx.has_all_blue_flowers, "All Blue Flowers (3x)"),
-    #(ctx.is_clean_no_winds_or_dragons, "Clean No Winds/Dragons (3x)"),
+    #(ctx.has_all_red_flowers, "All Red Flowers (8x)"),
+    #(ctx.has_all_blue_flowers, "All Blue Flowers (8x)"),
+    #(ctx.is_clean_no_winds_or_dragons, "Clean No Winds/Dragons (8x)"),
   ]
   let all_conditions = list.append(single_conditions, triple_conditions)
   list.filter_map(all_conditions, fn(pair) {
