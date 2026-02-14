@@ -1419,6 +1419,62 @@ fn view_rules_page() -> Element(Msg) {
         html.li([], [text("Flower: 4 pts")]),
         html.li([], [text("Mah-jonging: 20 pts")]),
       ]),
+      h3([], [text("Doubles")]),
+      html.p([], [
+        text("Each double multiplies the final score by 2. Doubles stack."),
+      ]),
+      html.table([class("rules-table")], [
+        html.thead([], [
+          html.tr([], [
+            html.th([], [text("Condition")]),
+            html.th([], [text("Doubles")]),
+          ]),
+        ]),
+        html.tbody([], [
+          html.tr([], [
+            html.td([], [text("Being clean (no chows)")]),
+            html.td([], [text("1")]),
+          ]),
+          html.tr([], [
+            html.td([], [text("Pung/Kong of Dragons")]),
+            html.td([], [text("1")]),
+          ]),
+          html.tr([], [
+            html.td([], [text("Pung/Kong of own Wind")]),
+            html.td([], [text("1")]),
+          ]),
+          html.tr([], [
+            html.td([], [text("Pung/Kong of Prevailing Wind")]),
+            html.td([], [text("1")]),
+          ]),
+          html.tr([], [
+            html.td([], [text("Both own Flowers")]),
+            html.td([], [text("1")]),
+          ]),
+          html.tr([], [
+            html.td([], [text("Being East Wind")]),
+            html.td([], [text("1")]),
+          ]),
+          html.tr([], [
+            html.td([], [text("All 4 Red or all 4 Blue Flowers")]),
+            html.td([], [text("3")]),
+          ]),
+          html.tr([], [
+            html.td([], [text("Clean without Winds or Dragons")]),
+            html.td([], [text("3")]),
+          ]),
+        ]),
+      ]),
+      h3([], [text("Payouts")]),
+      html.ul([], [
+        html.li([], [
+          text("Each loser pays the winner their own score difference"),
+        ]),
+        html.li([], [text("East Wind pays and receives double")]),
+        html.li([], [
+          text("Limit: 500 pts (1000 for East)"),
+        ]),
+      ]),
       h2([], [text("Limit Hands")]),
       html.details([class("original-ref")], [
         html.summary([], [text("Show original")]),
@@ -1430,8 +1486,42 @@ fn view_rules_page() -> Element(Msg) {
       ]),
       html.p([], [
         text(
-          "Limit hands are special winning patterns worth the maximum score.",
+          "Limit hands are special winning patterns worth the maximum score. Must be clean.",
         ),
+      ]),
+      html.ul([], [
+        html.li([], [
+          html.strong([], [text("Celestial Wonder: ")]),
+          text("1 & 9 of each of 3 suits + one of each Wind & Dragon, pair to one of them"),
+        ]),
+        html.li([], [
+          html.strong([], [text("1-9: ")]),
+          text("1-9 of a suit + 4 Winds or Dragons + pair to one of them"),
+        ]),
+        html.li([], [
+          html.strong([], [text("Crochet: ")]),
+          text("4 sets of 3 + pair in three suits, no Winds or Dragons"),
+        ]),
+        html.li([], [
+          html.strong([], [text("Knitting: ")]),
+          text("7 pairs in 2 suits, no Winds or Dragons"),
+        ]),
+        html.li([], [
+          html.strong([], [text("Clean Pairs: ")]),
+          text("7 pairs all in 1 suit or with Winds & Dragons"),
+        ]),
+        html.li([], [
+          html.strong([], [text("Green Hand: ")]),
+          text("3 of a kind of all green sticks (2, 3, 4, 6, 8) and Green Dragon"),
+        ]),
+        html.li([], [
+          html.strong([], [text("Regular Hand: ")]),
+          text("4 sets of 3 & a pair, clean (1 suit or honors incl. 1 & 9) and Winds & Dragons"),
+        ]),
+        html.li([], [
+          html.strong([], [text("Heavenly Twins: ")]),
+          text("7 pairs of honors (1s & 9s of Winds & Dragons)"),
+        ]),
       ]),
     ]),
   ])
@@ -2017,8 +2107,11 @@ fn styles() -> String {
       3px 3px 0 rgba(44,44,44,0.15),
       5px 5px 8px rgba(44,44,44,0.08);
   }
-  .rules-content h2 {
+  .rules-content h2 + .original-ref {
     margin-top: 0;
+  }
+  .rules-content h2 {
+    margin-top: 32px;
     text-transform: uppercase;
     letter-spacing: 2px;
     border-bottom: 1px solid var(--carbon-faded);
