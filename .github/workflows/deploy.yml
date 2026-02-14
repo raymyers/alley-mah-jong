@@ -31,9 +31,11 @@ jobs:
         run: gleam deps download
 
       - name: Build static site
+        shell: bash
         run: |
           gleam run -m lustre/dev build --no-html
-          cp index.html dist/
+          HASH=$(git rev-parse --short HEAD)
+          sed "s/alley_mah_jong\.js/alley_mah_jong.js?v=$HASH/" index.html > dist/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
