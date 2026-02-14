@@ -1523,6 +1523,25 @@ fn view_rules_page() -> Element(Msg) {
           text("7 pairs of honors (1s & 9s of Winds & Dragons)"),
         ]),
       ]),
+      h2([], [text("Feedback")]),
+      html.p([], [
+        text(
+          "This is open source software created by Ray and Liz based on family rules played by the original Ray and Liz.",
+        ),
+      ]),
+      html.p([], [
+        text("Found a bug or have a suggestion? "),
+        html.a(
+          [
+            attribute.href(
+              "https://github.com/raymyers/alley-mah-jong/issues",
+            ),
+            attribute.attribute("target", "_blank"),
+          ],
+          [text("Open an issue on GitHub")],
+        ),
+        text("."),
+      ]),
     ]),
   ])
 }
