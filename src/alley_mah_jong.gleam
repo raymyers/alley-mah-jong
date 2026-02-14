@@ -1358,7 +1358,7 @@ fn view_rules_page() -> Element(Msg) {
       html.details([class("original-ref")], [
         html.summary([], [text("Show original")]),
         html.img([
-          attribute.src("/scoring.jpg"),
+          attribute.src("scoring.jpg"),
           attribute.alt("Original scoring reference"),
           class("original-img"),
         ]),
@@ -1479,7 +1479,7 @@ fn view_rules_page() -> Element(Msg) {
       html.details([class("original-ref")], [
         html.summary([], [text("Show original")]),
         html.img([
-          attribute.src("/limit-hands.jpg"),
+          attribute.src("limit-hands.jpg"),
           attribute.alt("Original limit hands reference"),
           class("original-img"),
         ]),
