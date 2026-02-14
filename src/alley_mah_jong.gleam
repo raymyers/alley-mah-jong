@@ -1539,7 +1539,7 @@ fn view_rules_page() -> Element(Msg) {
         text("Found a bug or have a suggestion? "),
         html.a(
           [
-            attribute.href("https://github.com/raymyers/alley-mah-jong/issues"),
+            attribute.href("https://github.com/raymyers/alley-mah-jong"),
             attribute.attribute("target", "_blank"),
           ],
           [text("Open an issue on GitHub")],
