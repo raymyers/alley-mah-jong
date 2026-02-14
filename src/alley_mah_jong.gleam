@@ -1365,7 +1365,7 @@ fn view_rules_page() -> Element(Msg) {
       ]),
       html.p([], [
         text(
-          "This app calculates Mah-jong hand scores. Enter each player's melds and bonuses to see their points.",
+          "This app calculates Mah-jong hand scores. Enter each player's melds and bonuses to see their points. No dirty punging and konging allowed.",
         ),
       ]),
       h3([], [text("Pungs (3 of a kind)")]),
