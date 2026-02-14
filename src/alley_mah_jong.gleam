@@ -1492,7 +1492,9 @@ fn view_rules_page() -> Element(Msg) {
       html.ul([], [
         html.li([], [
           html.strong([], [text("Celestial Wonder: ")]),
-          text("1 & 9 of each of 3 suits + one of each Wind & Dragon, pair to one of them"),
+          text(
+            "1 & 9 of each of 3 suits + one of each Wind & Dragon, pair to one of them",
+          ),
         ]),
         html.li([], [
           html.strong([], [text("1-9: ")]),
@@ -1512,11 +1514,15 @@ fn view_rules_page() -> Element(Msg) {
         ]),
         html.li([], [
           html.strong([], [text("Green Hand: ")]),
-          text("3 of a kind of all green sticks (2, 3, 4, 6, 8) and Green Dragon"),
+          text(
+            "3 of a kind of all green sticks (2, 3, 4, 6, 8) and Green Dragon",
+          ),
         ]),
         html.li([], [
           html.strong([], [text("Regular Hand: ")]),
-          text("4 sets of 3 & a pair, clean (1 suit or honors incl. 1 & 9) and Winds & Dragons"),
+          text(
+            "4 sets of 3 & a pair, clean (1 suit or honors incl. 1 & 9) and Winds & Dragons",
+          ),
         ]),
         html.li([], [
           html.strong([], [text("Heavenly Twins: ")]),
@@ -1533,9 +1539,7 @@ fn view_rules_page() -> Element(Msg) {
         text("Found a bug or have a suggestion? "),
         html.a(
           [
-            attribute.href(
-              "https://github.com/raymyers/alley-mah-jong/issues",
-            ),
+            attribute.href("https://github.com/raymyers/alley-mah-jong/issues"),
             attribute.attribute("target", "_blank"),
           ],
           [text("Open an issue on GitHub")],
