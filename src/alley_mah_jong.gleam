@@ -1355,6 +1355,14 @@ fn view_rules_page() -> Element(Msg) {
   div([class("rules-page")], [
     html.article([class("rules-content")], [
       h2([], [text("Scoring Rules")]),
+      html.details([class("original-ref")], [
+        html.summary([], [text("Show original")]),
+        html.img([
+          attribute.src("/scoring.jpg"),
+          attribute.alt("Original scoring reference"),
+          class("original-img"),
+        ]),
+      ]),
       html.p([], [
         text(
           "This app calculates Mah-jong hand scores. Enter each player's melds and bonuses to see their points.",
@@ -1410,6 +1418,20 @@ fn view_rules_page() -> Element(Msg) {
         html.li([], [text("Pair of Dragons: 2 pts")]),
         html.li([], [text("Flower: 4 pts")]),
         html.li([], [text("Mah-jonging: 20 pts")]),
+      ]),
+      h2([], [text("Limit Hands")]),
+      html.details([class("original-ref")], [
+        html.summary([], [text("Show original")]),
+        html.img([
+          attribute.src("/limit-hands.jpg"),
+          attribute.alt("Original limit hands reference"),
+          class("original-img"),
+        ]),
+      ]),
+      html.p([], [
+        text(
+          "Limit hands are special winning patterns worth the maximum score.",
+        ),
       ]),
     ]),
   ])
@@ -2040,6 +2062,27 @@ fn styles() -> String {
   }
   .rules-table td {
     background: var(--cream);
+  }
+  .original-ref {
+    margin-top: 16px;
+    margin-bottom: 16px;
+  }
+  .original-ref summary {
+    cursor: pointer;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--ink-purple);
+    font-weight: bold;
+    padding: 8px 0;
+  }
+  .original-ref summary:hover {
+    text-decoration: underline;
+  }
+  .original-img {
+    max-width: 100%;
+    margin-top: 12px;
+    border: 1px solid var(--carbon-faded);
   }
   /* Points display with multiplier */
   .points-display {
