@@ -463,8 +463,7 @@ fn calculate_player_payout(
     }
   }
 
-  let received =
-    list.fold(receiving, 0, fn(acc, entry) { acc + entry.amount })
+  let received = list.fold(receiving, 0, fn(acc, entry) { acc + entry.amount })
 
   PlayerPayout(paying: paying, receiving: receiving, received: received)
 }
