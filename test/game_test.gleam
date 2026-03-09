@@ -21,6 +21,10 @@ pub fn net_payout_test() {
         engine.PayoutEntry(to: Player3, amount: 32),
         engine.PayoutEntry(to: Player4, amount: 16),
       ],
+      receiving: [
+        engine.PayoutEntry(to: Player1, amount: 64),
+        engine.PayoutEntry(to: Player3, amount: 64),
+      ],
       received: 128,
     )
   assert engine.net_payout(payout) == -20
@@ -28,7 +32,16 @@ pub fn net_payout_test() {
 
 // Winner net payout is just received (pays nothing)
 pub fn winner_net_payout_test() {
-  let payout = engine.PlayerPayout(paying: [], received: 300)
+  let payout =
+    engine.PlayerPayout(
+      paying: [],
+      receiving: [
+        engine.PayoutEntry(to: Player2, amount: 100),
+        engine.PayoutEntry(to: Player3, amount: 100),
+        engine.PayoutEntry(to: Player4, amount: 100),
+      ],
+      received: 300,
+    )
   assert engine.net_payout(payout) == 300
 }
 

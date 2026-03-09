@@ -1320,32 +1320,65 @@ fn view_payout_section(
 ) -> Element(Msg) {
   case payout {
     None -> text("")
-    Some(p) ->
+    Some(p) -> {
+      let total_paid =
+        list.fold(p.paying, 0, fn(acc, entry) { acc + entry.amount })
+      // Use paying list for column players (it has all other players for non-winners)
+      // For winners, use receiving list (they pay nothing)
+      let col_players = case is_winner {
+        True -> list.map(p.receiving, fn(entry) { entry.to })
+        False -> list.map(p.paying, fn(entry) { entry.to })
+      }
       div([class("payout-section")], [
-        case is_winner {
-          True -> text("")
-          False ->
-            div([class("payout-row")], [
-              span([class("payout-label")], [text("Paying:")]),
-              div(
-                [class("payout-entries")],
-                list.map(p.paying, fn(entry) {
-                  span([class("payout-entry")], [
-                    text(
-                      get_player_name(entry.to, names)
-                      <> ": "
-                      <> int.to_string(entry.amount),
-                    ),
-                  ])
-                }),
-              ),
-            ])
-        },
-        div([class("payout-row")], [
-          span([class("payout-label")], [text("Received:")]),
-          span([class("payout-amount")], [text(int.to_string(p.received))]),
+        html.table([class("payout-table")], [
+          html.thead([], [
+            html.tr([], [
+              html.th([], []),
+              html.th([class("payout-total-col")], [text("Total")]),
+              ..list.map(col_players, fn(player) {
+                html.th([], [text(get_player_name(player, names))])
+              })
+            ]),
+          ]),
+          html.tbody([], [
+            case is_winner {
+              True -> text("")
+              False ->
+                html.tr([], [
+                  html.td([class("payout-label")], [text("Paying")]),
+                  html.td([class("payout-cell payout-total-col")], [
+                    text(int.to_string(total_paid)),
+                  ]),
+                  ..list.map(col_players, fn(player) {
+                    let amount = find_entry_amount(p.paying, player)
+                    html.td([class("payout-cell")], [text(amount)])
+                  })
+                ])
+            },
+            html.tr([], [
+              html.td([class("payout-label")], [text("Received")]),
+              html.td([class("payout-cell payout-total-col")], [
+                text(int.to_string(p.received)),
+              ]),
+              ..list.map(col_players, fn(player) {
+                let amount = find_entry_amount(p.receiving, player)
+                html.td([class("payout-cell")], [text(amount)])
+              })
+            ]),
+          ]),
         ]),
       ])
+    }
+  }
+}
+
+fn find_entry_amount(
+  entries: List(engine.PayoutEntry),
+  player: Player,
+) -> String {
+  case list.find(entries, fn(e) { e.to == player }) {
+    Ok(entry) -> int.to_string(entry.amount)
+    Error(_) -> "-"
   }
 }
 
@@ -2298,34 +2331,38 @@ fn styles() -> String {
     margin-top: 10px;
     padding-top: 10px;
     border-top: 2px solid var(--carbon-faded);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
   }
-  .payout-row {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
+  .payout-table {
+    border-collapse: collapse;
+    font-size: 11px;
+    width: auto;
+  }
+  .payout-table th {
+    font-size: 10px;
+    color: var(--carbon-light);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: normal;
+    padding: 2px 10px;
+    text-align: center;
+  }
+  .payout-table th:first-child {
+    text-align: left;
   }
   .payout-label {
     font-size: 10px;
     color: var(--carbon-light);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    width: var(--row-label-width);
-    flex-shrink: 0;
+    padding-right: 10px;
+    text-align: left;
   }
-  .payout-entries {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .payout-entry {
-    font-size: 11px;
+  .payout-cell {
+    text-align: center;
+    padding: 2px 10px;
     color: var(--carbon);
   }
-  .payout-amount {
-    font-size: 14px;
+  .payout-total-col {
     font-weight: bold;
     color: var(--ink-purple);
   }

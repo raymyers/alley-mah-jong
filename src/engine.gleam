@@ -363,7 +363,11 @@ pub type PayoutEntry {
 }
 
 pub type PlayerPayout {
-  PlayerPayout(paying: List(PayoutEntry), received: Int)
+  PlayerPayout(
+    paying: List(PayoutEntry),
+    receiving: List(PayoutEntry),
+    received: Int,
+  )
 }
 
 // --- Payout Calculation ---
@@ -423,43 +427,46 @@ fn calculate_player_payout(
     }
   }
 
-  // Calculate received: others pay me MY score (East payers pay double)
-  let received = case is_winner {
+  // Calculate received per player: others pay me MY score (East payers pay double)
+  let receiving = case is_winner {
     True -> {
       // Winner receives their score from all non-winners
-      list.fold(all_players, 0, fn(acc, other) {
+      list.filter_map(all_players, fn(other) {
         case other == player {
-          True -> acc
+          True -> Error(Nil)
           False -> {
             let other_is_east = other == east
             let amount = case other_is_east {
               True -> my_score * 2
               False -> my_score
             }
-            acc + amount
+            Ok(PayoutEntry(to: other, amount: amount))
           }
         }
       })
     }
     False -> {
       // Non-winner receives their score from other non-winners
-      list.fold(all_players, 0, fn(acc, other) {
+      list.filter_map(all_players, fn(other) {
         case other == player || other == winner {
-          True -> acc
+          True -> Error(Nil)
           False -> {
             let other_is_east = other == east
             let amount = case other_is_east {
               True -> my_score * 2
               False -> my_score
             }
-            acc + amount
+            Ok(PayoutEntry(to: other, amount: amount))
           }
         }
       })
     }
   }
 
-  PlayerPayout(paying: paying, received: received)
+  let received =
+    list.fold(receiving, 0, fn(acc, entry) { acc + entry.amount })
+
+  PlayerPayout(paying: paying, receiving: receiving, received: received)
 }
 
 fn get_score(scores: #(Int, Int, Int, Int), player: Player) -> Int {
